@@ -1,0 +1,1 @@
+build/compiler -koopa tests/sources/hello.c -o tests/build/hello.koopa
