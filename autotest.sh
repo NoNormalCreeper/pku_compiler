@@ -11,12 +11,12 @@ fi
 
 if [ "$DOCKER_ENV" -eq 1 ]; then
     echo -e "\033[33mRunning autotest inside Docker container.\033[0m"
-    autotest -koopa -s lv1 /root/compiler
+    autotest -riscv -s lv1 /root/compiler
 else
     echo -e "\033[33mRunning autotest in the current environment.\033[0m"
     # 获取脚本文件所在目录的绝对路径
     MOUNT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
     echo "Mounting directory: $MOUNT_DIR"
     docker run -it --rm -v "$MOUNT_DIR":/root/compiler maxxing/compiler-dev \
-        autotest -koopa -s lv1 /root/compiler
+        autotest -riscv -s lv1 /root/compiler
 fi
