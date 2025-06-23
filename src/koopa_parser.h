@@ -22,6 +22,7 @@ public:
     KoopaParser& operator=(KoopaParser&&) = default;
     
     const koopa_raw_program_t* parseToRawProgram(const std::string& input);
+    std::string compileToAssembly(const std::string& input);
 
 private:
     class Impl;
