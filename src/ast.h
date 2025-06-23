@@ -17,12 +17,23 @@ class BlockAST;
 class StmtAST;
 class NumberAST;
 
+class ExpAST;
+class PrimaryExpAST;
+class UnaryExpOpAndExpAST;
+class UnaryExpAST;
+
+enum UnaryOp : std::uint8_t {
+    UNARY_OP_POSITIVE, // +
+    UNARY_OP_NEGATIVE, // -
+    UNARY_OP_NOT, // !
+};
+
 // 所有 AST 的基类
 class BaseAST {
 public:
     virtual ~BaseAST() = default;
 
-    virtual void Dump() const = 0;
+    virtual void Dump() const;
     virtual std::string toKoopa() const;
 };
 
@@ -58,10 +69,11 @@ private:
 // Stmt
 class StmtAST : public BaseAST {
 public:
-    // Stmt -> "return" Number ";"
-    std::unique_ptr<NumberAST> number;
+    // Stmt -> "return" Exp ";"
+    // std::unique_ptr<NumberAST> number;
+    std::unique_ptr<ExpAST> expression;
 
-    StmtAST(std::unique_ptr<NumberAST> num);
+    StmtAST(std::unique_ptr<ExpAST> exp);
 
     void Dump() const override;
     std::string toKoopa() const override;
@@ -104,25 +116,25 @@ public:
 };
 
 /// 一元表达式
-class ExpAST;
-class PrimaryAST;
-class UnaryExpOpAndExpAST;
-class UnaryExpAST;
-
-enum UnaryOp : std::uint8_t {
-    UNARY_OP_POSITIVE, // +
-    UNARY_OP_NEGATIVE, // -
-    UNARY_OP_NOT, // !
-};
 
 class PrimaryExpAST : public BaseAST {
 public:
     std::variant<std::unique_ptr<ExpAST>, NumberAST> expression;
+
+    PrimaryExpAST(std::unique_ptr<ExpAST> exp)
+        : expression(std::move(exp)) {}
+    PrimaryExpAST(NumberAST number)
+        : expression(std::move(number)) {}
 };
 
 class UnaryExpAST : public BaseAST {
 public:
     std::variant<std::unique_ptr<PrimaryExpAST>, std::unique_ptr<UnaryExpOpAndExpAST>> expression;
+
+    UnaryExpAST(std::unique_ptr<PrimaryExpAST> primary_exp)
+        : expression(std::move(primary_exp)) {}
+    UnaryExpAST(std::unique_ptr<UnaryExpOpAndExpAST> unary_exp_op_and_exp)
+        : expression(std::move(unary_exp_op_and_exp)) {}
 };
 
 // UnaryOp UnaryExp
@@ -130,4 +142,15 @@ class UnaryExpOpAndExpAST : public BaseAST {
 public:
     UnaryOp op; // 一元运算符
     std::unique_ptr<UnaryExpAST> latter_expression;
+
+    UnaryExpOpAndExpAST(UnaryOp operation, std::unique_ptr<UnaryExpAST> exp)
+        : op(operation), latter_expression(std::move(exp)) {}
+};
+
+class ExpAST : public BaseAST {
+public:
+    std::unique_ptr<UnaryExpAST> unary_exp;
+
+    ExpAST(std::unique_ptr<UnaryExpAST> unary_exp)
+        : unary_exp(std::move(unary_exp)) {}
 };
