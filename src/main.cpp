@@ -38,7 +38,9 @@ int main(int argc, const char* argv[])
     // 输出解析得到的 AST, 其实就是个字符串
     //   cout << *ast << endl;
     // dump AST
-    // ast->Dump();
+    ast->Dump();
+    cout << endl;
+    
     auto koopa_code = ast->toKoopa();
     cout << koopa_code;
     cout << endl;

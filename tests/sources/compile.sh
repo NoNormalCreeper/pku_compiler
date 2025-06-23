@@ -1,1 +1,1 @@
-build/compiler -riscv tests/sources/hello.c -o tests/build/hello.S
+build/compiler -koopa tests/sources/hello.c -o tests/build/hello.koopa
