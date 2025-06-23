@@ -1,9 +1,15 @@
 #include "ast.h"
+#include <cmath>
 
 // BaseAST implementations
 std::string BaseAST::toKoopa() const
 {
-    return "";
+    return "/* koopa not implemented */";
+}
+
+void BaseAST::Dump() const
+{
+    std::cout << "BaseAST { /* not implemented */ }";
 }
 
 // NumberAST implementations
@@ -39,16 +45,16 @@ std::string FuncTypeAST::toKoopa() const
 }
 
 // StmtAST implementations
-StmtAST::StmtAST(std::unique_ptr<NumberAST> num)
-    : number(std::move(num))
+StmtAST::StmtAST(std::unique_ptr<ExpAST> exp)
+    : expression(std::move(exp))
 {
 }
 
 void StmtAST::Dump() const
 {
     std::cout << "StmtAST { return ";
-    if (number) {
-        number->Dump();
+    if (expression) {
+        expression->Dump();
     } else {
         std::cout << "null";
     }
@@ -57,8 +63,8 @@ void StmtAST::Dump() const
 
 std::string StmtAST::toKoopa() const
 {
-    if (number) {
-        return stringFormat("ret %s\n", number->toKoopa());
+    if (expression) {
+        return stringFormat("ret %s\n", expression->toKoopa());
     }
     return "ret void\n"; // 如果没有数字，返回 void
 }
