@@ -26,16 +26,20 @@ using namespace std;
 %union {
   std::string *str_val;
   int int_val;
-  BaseAST *ast_val;
+  char char_val;
+  BaseAST* ast_val;
 }
 
 // lexer 返回的所有 token 种类的声明
 %token INT RETURN
 %token <str_val> IDENT
 %token <int_val> INT_CONST
+%token <char_val> UNARY_OP
+%token '(' LEFT_PAREN
+%token ')' RIGHT_PAREN
 
 // 非终结符的类型定义
-%type <ast_val> FuncDef FuncType Block Stmt Number
+%type <ast_val> FuncDef FuncType Block Stmt Number Exp UnaryExp PrimaryExp
 %type <ast_val> CompUnit
 
 %%
@@ -58,6 +62,7 @@ FuncDef
         std::string(*$2),
         std::unique_ptr<BlockAST>(static_cast<BlockAST*>($5))
     );
+    delete $2;  // 清理 IDENT 的内存
     $$ = func_def.release();
   }
   ;
@@ -78,11 +83,11 @@ Block
   }
   ;
 
-// Stmt ::= "return" Number ';'
+// Stmt ::= "return" Exp ';'
 Stmt
-  : RETURN Number ';' {
+  : RETURN Exp ';' {
     auto stmt = std::make_unique<StmtAST>(
-        std::unique_ptr<NumberAST>(static_cast<NumberAST*>($2))
+        std::unique_ptr<ExpAST>(static_cast<ExpAST*>($2))
     );
     $$ = stmt.release();
   }
@@ -93,6 +98,66 @@ Number
   : INT_CONST {
     auto number = std::make_unique<NumberAST>($1);
     $$ = number.release();
+  }
+  ;
+
+// Exp ::= UnaryExp
+Exp : UnaryExp
+  {
+    auto exp = std::make_unique<ExpAST>(
+      std::unique_ptr<UnaryExpAST>(static_cast<UnaryExpAST*>($1))
+    );
+    $$ = exp.release();
+  }
+  ;
+
+UnaryExp : PrimaryExp
+  {
+    // UnaryExp ::= PrimaryExp
+    auto unary_exp = std::make_unique<UnaryExpAST>(
+      std::unique_ptr<PrimaryExpAST>(static_cast<PrimaryExpAST*>($1))
+    );
+    $$ = unary_exp.release();
+  }
+  | UNARY_OP UnaryExp
+  {
+    // UnaryExp ::= UnaryOp UnaryExp;
+    UnaryOp op;
+    switch ($1) {
+      case '+': op = UNARY_OP_POSITIVE; break;
+      case '-': op = UNARY_OP_NEGATIVE; break;
+      case '!': op = UNARY_OP_NOT; break;
+      default: op = UNARY_OP_POSITIVE; break;
+    }
+
+    auto unary_exp_op_and_exp = std::make_unique<UnaryExpOpAndExpAST>(
+      op,
+      std::unique_ptr<UnaryExpAST>(static_cast<UnaryExpAST*>($2))
+    );
+    
+    auto unary_exp = std::make_unique<UnaryExpAST>(std::move(unary_exp_op_and_exp));
+    $$ = unary_exp.release();
+  }
+  ;
+
+
+PrimaryExp : '(' Exp ')'
+  {
+    // PrimaryExp ::= "(" Exp ")"
+    auto primary_exp = std::make_unique<PrimaryExpAST>(
+      std::unique_ptr<ExpAST>(static_cast<ExpAST*>($2))
+    );
+    $$ = primary_exp.release();
+  }
+  | Number
+  {
+    // PrimaryExp ::= Number; (Number ::= INT_CONST)
+    NumberAST* number_ptr = static_cast<NumberAST*>($1);
+    auto primary_exp = std::make_unique<PrimaryExpAST>(
+      NumberAST(number_ptr->value)  // 创建 NumberAST 对象的副本
+    );
+    delete number_ptr;  // 清理原来的对象
+    $$ = primary_exp.release();
   }
   ;
 
