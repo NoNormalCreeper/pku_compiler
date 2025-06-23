@@ -29,7 +29,11 @@ Octal         0[0-7]*
 Hexadecimal   0[xX][0-9a-fA-F]+
 
 /* 一元表运算符 */
-UnaryOperator "+" | "-" | "!"
+/* UnaryOperator [+\-!] */
+
+/* 圆括号 */
+/* LeftParen     "\("
+RightParen    "\)" */
 
 %%
 
@@ -45,6 +49,16 @@ UnaryOperator "+" | "-" | "!"
 {Decimal}       { yylval.int_val = strtol(yytext, nullptr, 0); return INT_CONST; }
 {Octal}         { yylval.int_val = strtol(yytext, nullptr, 0); return INT_CONST; }
 {Hexadecimal}   { yylval.int_val = strtol(yytext, nullptr, 0); return INT_CONST; }
+
+"+"             { yylval.char_val = yytext[0]; return UNARY_OP; }
+"-"             { yylval.char_val = yytext[0]; return UNARY_OP; }
+"!"             { yylval.char_val = yytext[0]; return UNARY_OP; }
+
+"("             { return '('; }
+")"             { return ')'; }
+"{"             { return '{'; }
+"}"             { return '}'; }
+";"             { return ';'; }
 
 .               { return yytext[0]; }
 
