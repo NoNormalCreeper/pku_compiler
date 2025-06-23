@@ -5,6 +5,7 @@
 #include <string>
 
 #include "ast.h"
+#include "koopa_parser.h"
 
 using namespace std;
 
@@ -38,14 +39,34 @@ int main(int argc, const char* argv[])
     //   cout << *ast << endl;
     // dump AST
     // ast->Dump();
-    cout << ast->toKoopa();
+    auto koopa_code = ast->toKoopa();
+    cout << koopa_code;
     cout << endl;
 
     // 写入输出文件
     FILE* out = fopen(output, "w");
     assert(out);
-    fprintf(out, "%s", ast->toKoopa().c_str());
-    fclose(out);
     
+    assert(!koopa_code.empty());
+
+    auto mode_str = string(mode);
+    cout << "Mode: " << mode_str << endl;
+    if (mode_str == "-koopa") {
+        fprintf(out, "%s", koopa_code.c_str());
+    } else if (mode_str == "-riscv") {
+        auto koopa_parser = make_unique<KoopaParser>();
+        // const auto* raw_program = koopa_parser->parseToRawProgram(koopa_code);
+        // assert(raw_program);
+        auto assembly = koopa_parser->compileToAssembly(koopa_code);
+
+        cout << assembly << endl;
+        fprintf(out, "%s", assembly.c_str());
+    } else {
+        cerr << "Unknown mode: " << mode_str << endl;
+        fclose(out);
+        return 1;
+    }
+    fclose(out);
+
     return 0;
 }
