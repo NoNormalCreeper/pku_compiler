@@ -9,4 +9,4 @@ rm -r ./build || true
 # 配置并构建项目
 cmake -B build && cmake --build build
 
-echo "Build complete. Executable is at: build/compiler"
+echo -e "\033[33mBuild complete. Executable is at: build/compiler\033[0m"
