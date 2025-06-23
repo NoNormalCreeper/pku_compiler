@@ -4,6 +4,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <variant>
 
 #include "string_format.h"
 
@@ -100,4 +101,33 @@ public:
 
     void Dump() const override;
     std::string toKoopa() const override;
+};
+
+/// 一元表达式
+class ExpAST;
+class PrimaryAST;
+class UnaryExpOpAndExpAST;
+class UnaryExpAST;
+
+enum UnaryOp : std::uint8_t {
+    UNARY_OP_POSITIVE, // +
+    UNARY_OP_NEGATIVE, // -
+    UNARY_OP_NOT, // !
+};
+
+class PrimaryExpAST : public BaseAST {
+public:
+    std::variant<std::unique_ptr<ExpAST>, NumberAST> expression;
+};
+
+class UnaryExpAST : public BaseAST {
+public:
+    std::variant<std::unique_ptr<PrimaryExpAST>, std::unique_ptr<UnaryExpOpAndExpAST>> expression;
+};
+
+// UnaryOp UnaryExp
+class UnaryExpOpAndExpAST : public BaseAST {
+public:
+    UnaryOp op; // 一元运算符
+    std::unique_ptr<UnaryExpAST> latter_expression;
 };
