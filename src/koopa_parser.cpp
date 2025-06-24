@@ -254,16 +254,16 @@ const koopa_raw_program_t* KoopaParser::parseToRawProgram(const std::string& inp
 }
 
 std::string KoopaParser::compileToAssembly(const std::string& input)
-    {
-        auto raw_program = pImpl->parseToRawProgram(input);
-        assert(raw_program != nullptr);
+{
+    auto raw_program = pImpl->parseToRawProgram(input);
+    assert(raw_program != nullptr);
 
-        auto commands = pImpl->Visit(*raw_program);
+    auto commands = pImpl->Visit(*raw_program);
 
-        std::string assembly;
-        for (const auto& command : commands) {
-            assembly += command + "\n";
-        }
-        
-        return assembly;
+    std::string assembly;
+    for (const auto& command : commands) {
+        assembly += command + "\n";
     }
+    
+    return assembly;
+}

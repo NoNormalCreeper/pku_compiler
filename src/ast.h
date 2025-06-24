@@ -125,6 +125,8 @@ public:
         : expression(std::move(exp)) {}
     PrimaryExpAST(NumberAST number)
         : expression(std::move(number)) {}
+
+    void Dump() const override;
 };
 
 class UnaryExpAST : public BaseAST {
@@ -135,6 +137,8 @@ public:
         : expression(std::move(primary_exp)) {}
     UnaryExpAST(std::unique_ptr<UnaryExpOpAndExpAST> unary_exp_op_and_exp)
         : expression(std::move(unary_exp_op_and_exp)) {}
+    
+    void Dump() const override;
 };
 
 // UnaryOp UnaryExp
@@ -145,6 +149,8 @@ public:
 
     UnaryExpOpAndExpAST(UnaryOp operation, std::unique_ptr<UnaryExpAST> exp)
         : op(operation), latter_expression(std::move(exp)) {}
+    
+    void Dump() const override;
 };
 
 class ExpAST : public BaseAST {
@@ -153,4 +159,6 @@ public:
 
     ExpAST(std::unique_ptr<UnaryExpAST> unary_exp)
         : unary_exp(std::move(unary_exp)) {}
+    
+    void Dump() const override;
 };

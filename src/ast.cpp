@@ -144,3 +144,56 @@ std::string CompUnitAST::toKoopa() const
     }
     return "";
 }
+
+void PrimaryExpAST::Dump() const
+{
+    std::cout << "PrimaryExpAST { ";
+    if (std::holds_alternative<std::unique_ptr<ExpAST>>(expression)) {
+        std::cout << "'( '";
+        std::get<std::unique_ptr<ExpAST>>(expression)->Dump();
+        std::cout << "' )'";
+    } else {
+        std::get<NumberAST>(expression).Dump();
+    }
+    std::cout << " }";
+}
+
+void UnaryExpAST::Dump() const
+{
+    std::cout << "UnaryExpAST { ";
+    if (std::holds_alternative<std::unique_ptr<PrimaryExpAST>>(expression)) {
+        std::get<std::unique_ptr<PrimaryExpAST>>(expression)->Dump();
+    } else {
+        std::get<std::unique_ptr<UnaryExpOpAndExpAST>>(expression)->Dump();
+    }
+    std::cout << " }";
+}
+
+void UnaryExpOpAndExpAST::Dump() const
+{
+    const auto op_display_name = [](const UnaryOp& op) {
+        switch (op) {
+            case UNARY_OP_POSITIVE:
+                return "+";
+            case UNARY_OP_NEGATIVE:
+                return "-";
+            case UNARY_OP_NOT:
+                return "!";
+        }
+    };
+    std::cout << "UnaryOp { " << op_display_name(op) << " }, ";
+    std::cout << "UnaryExp { ";
+    latter_expression->Dump();
+    std::cout << " }";
+}
+
+void ExpAST::Dump() const
+{
+    std::cout << "ExpAST { ";
+    if (unary_exp) {
+        unary_exp->Dump();
+    } else {
+        std::cout << "null";
+    }
+    std::cout << " }";
+}
