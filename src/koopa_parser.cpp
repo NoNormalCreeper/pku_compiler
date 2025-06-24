@@ -3,11 +3,11 @@
 #include "koopa.h"
 #include "string_format.h"
 #include <cassert>
+#include <iostream>
 #include <memory>
 #include <string>
 #include <unordered_map>
 #include <vector>
-#include <iostream>
 
 // RAII wrapper for koopa_program_t
 class KoopaProgram {
@@ -151,10 +151,10 @@ public:
         const auto func = Visit(program.funcs);
 
         std::vector<std::string> commands = { "  .text" };
-        
+
         // Add global declaration for main function
         commands.push_back("  .globl main");
-        
+
         for (const auto& iden : values) {
             commands.push_back(stringFormat("  .globl %s", iden));
         }
@@ -174,8 +174,8 @@ public:
             auto ptr = slice.buffer[i];
             std::vector<std::string> item_result;
             // 根据 slice 的 kind 决定将 ptr 视作何种元素
-            std::cout << "[DEBUG] Visiting slice item " << i 
-                      << " of kind " << slice.kind << std::endl;
+            // std::cout << "[DEBUG] Visiting slice item " << i
+            //           << " of kind " << slice.kind << std::endl;
             switch (slice.kind) {
             case KOOPA_RSIK_FUNCTION:
                 // 访问函数
@@ -209,14 +209,14 @@ public:
         clearTempVarCounter();
 
         // 访问所有基本块
-        std::vector<std::string> result; 
-        
+        std::vector<std::string> result;
+
         // Extract function name (remove @ prefix if present)
         std::string func_name = func->name;
         if (func_name[0] == '@') {
             func_name = func_name.substr(1);
         }
-        
+
         result.push_back(stringFormat("%s:", func_name));
 
         const auto bbs = Visit(func->bbs);
@@ -304,13 +304,12 @@ public:
         if (integer.value == 0) {
             return { "0" };
         }
-        
+
         // 其他数字分配寄存器
         int new_var = getNewTempVar();
-        std::cout << "[DEBUG] Visiting integer value: " << integer.value << " to new var " << new_var << std::endl;
+        // std::cout << "[DEBUG] Visiting integer value: " << integer.value << " to new var " << new_var << std::endl;
         getGeneratedInstructions().push_back(
-            stringFormat("li t%d, %d", new_var, integer.value)
-        );
+            stringFormat("li t%d, %d", new_var, integer.value));
         return { stringFormat("t%d", new_var) };
     }
 
@@ -319,7 +318,7 @@ public:
         // 访问 return 指令的值
         if (ret.value) {
             auto visited = Visit(ret.value);
-            std::cout << "[DEBUG] Visiting return value: " << visited.at(0) << std::endl;
+            // std::cout << "[DEBUG] Visiting return value: " << visited.at(0) << std::endl;
             assert(visited.size() == 1);
 
             if (visited.at(0) == "0") {
@@ -328,13 +327,11 @@ public:
             } else if (visited.at(0).find("t") != std::string::npos) {
                 // 否则将返回值加载到 a0 寄存器
                 getGeneratedInstructions().push_back(
-                    stringFormat("mv a0, %s", visited.at(0))
-                );
+                    stringFormat("mv a0, %s", visited.at(0)));
             } else {
                 // 如果返回值是数字
                 getGeneratedInstructions().push_back(
-                    stringFormat("li a0, %s", visited.at(0))
-                );
+                    stringFormat("li a0, %s", visited.at(0)));
             }
             getGeneratedInstructions().push_back("ret");
             return {}; // 返回空，因为已经添加到指令列表中
@@ -350,47 +347,49 @@ public:
         auto rhs = Visit(binary.rhs);
         assert(lhs.size() == 1 && rhs.size() == 1);
 
+        if (lhs.at(0) == "0") {
+            lhs.at(0) = "x0"; // 如果左侧是 0，使用 x0
+        }
+        if (rhs.at(0) == "0") {
+            rhs.at(0) = "x0"; // 如果右侧是 0，使用 x0
+        }
+
         std::string op;
         int new_var;
         switch (binary.op) {
-            case KOOPA_RBO_SUB:
-                op = "sub";
-                new_var = getNewTempVar();
+        case KOOPA_RBO_SUB:
+            op = "sub";
+            new_var = getNewTempVar();
 
-                std::cout << "[DEBUG] Visiting binary operation: " 
-                          << lhs.at(0) << " - " << rhs.at(0) 
-                          << " to new var " << new_var << std::endl;
+            // std::cout << "[DEBUG] Visiting binary operation: "
+            //           << lhs.at(0) << " - " << rhs.at(0)
+            //           << " to new var " << new_var << std::endl;
 
-                if (lhs.at(0) == "0") {
-                    // 如果左侧是 0，则直接使用 x0
-                    getGeneratedInstructions().push_back(
-                        stringFormat("sub t%d, x0, %s", new_var, rhs.at(0))
-                    );
-                }
-                break;
+            if (lhs.at(0) == "x0") {
+                // 如果左侧是 0，则直接使用 x0
+                getGeneratedInstructions().push_back(
+                    stringFormat("sub t%d, x0, %s", new_var, rhs.at(0)));
+            }
+            break;
 
-            case KOOPA_RBO_EQ:
-                op = "eq";
-                if (rhs.at(0) == "0") {
-                    // 如果右侧是 0
-                    new_var = getNewTempVar();
+        case KOOPA_RBO_EQ:
+            op = "eq";
+            new_var = getNewTempVar();
 
-                    std::cout << "[DEBUG] Visiting binary operation: " 
-                              << lhs.at(0) << " == 0 to new var " << new_var << std::endl;
-
-                    getGeneratedInstructions().push_back(
-                        stringFormat("li t%d, %s", new_var, lhs.at(0))
-                    );
-                    getGeneratedInstructions().push_back(
-                        stringFormat("xor t%d, t%d, x0", new_var, new_var)
-                    );
-                    getGeneratedInstructions().push_back(
-                        stringFormat("seqz t%d, t%d", new_var, new_var)
-                    );
-                } 
-                break;
-            default:
-                assert(false); // 未处理的操作符
+            if (rhs.at(0) == "x0") {
+                // 如果右侧是 0，使用 seqz 指令
+                getGeneratedInstructions().push_back(
+                    stringFormat("seqz t%d, %s", new_var, lhs.at(0)));
+            } else {
+                // 一般情况下的相等比较
+                getGeneratedInstructions().push_back(
+                    stringFormat("xor t%d, %s, %s", new_var, lhs.at(0), rhs.at(0)));
+                getGeneratedInstructions().push_back(
+                    stringFormat("seqz t%d, t%d", new_var, new_var));
+            }
+            break;
+        default:
+            assert(false); // 未处理的操作符
         }
         return { stringFormat("t%d", new_var) };
     }
@@ -420,6 +419,6 @@ std::string KoopaParser::compileToAssembly(const std::string& input)
     for (const auto& command : commands) {
         assembly += command + "\n";
     }
-    
+
     return assembly;
 }
