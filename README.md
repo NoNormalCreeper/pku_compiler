@@ -14,7 +14,7 @@
 
 ## Lv3. 表达式
 
-`WRONG ANSWER (7/28)`
+`WRONG ANSWER (19/28)`
 
 ```
 running test "00_pos" ... PASSED
@@ -24,8 +24,21 @@ running test "03_neg_max" ... PASSED
 running test "04_not_0" ... PASSED
 running test "05_not_10" ... PASSED
 running test "06_complex_unary" ... PASSED
+running test "07_add" ... PASSED
+running test "08_add_neg" ... PASSED
+running test "09_sub" ... PASSED
+running test "10_sub_neg" ... PASSED
+running test "11_mul" ... PASSED
+running test "12_mul_neg" ... PASSED
+running test "13_div" ... PASSED
+running test "14_div_neg" ... PASSED
+running test "15_mod" ... PASSED
+running test "16_mod_neg" ... PASSED
+...
+running test "25_int_min" ... PASSED
+running test "26_parentheses" ... PASSED
 ```
 
 - [x] Lv3.1. 一元表达式
-- [ ] Lv3.2. 算数表达式
+- [x] Lv3.2. 算数表达式
 - [ ] Lv3.3. 比较和逻辑表达式
