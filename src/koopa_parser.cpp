@@ -362,7 +362,7 @@ public:
         auto [lhs, rhs] = initBinaryArgs(binary);
 
         std::string op;
-        int new_var = getNewTempVar();
+        int new_var;
         switch (binary.op) {
         case KOOPA_RBO_SUB:
             op = "sub";
@@ -410,9 +410,55 @@ public:
             }
 
             // 一般情况下的加法
+            new_var = getNewTempVar();
             getGeneratedInstructions().push_back(
                 stringFormat("add t%d, %s, %s", new_var, lhs, rhs)
             );
+
+            break;
+        
+        case KOOPA_RBO_MUL:
+            op = "mul";
+
+            // 如果左侧或右侧是 0，直接返回 0
+            if (lhs == "x0" || rhs == "x0") {
+                return { "x0" };
+            }
+            // 如果左侧或右侧为 1，直接返回另一个操作数
+            // if (lhs == "x1") {
+            //     return { rhs };
+            // } else if (rhs == "x1") {
+            //     return { lhs };
+            // }
+
+            // 一般情况下的乘法
+            new_var = getNewTempVar();
+            getGeneratedInstructions().push_back(
+                stringFormat("mul t%d, %s, %s", new_var, lhs, rhs)
+            );
+
+            break;
+
+        case KOOPA_RBO_DIV:
+            op = "div";
+        case KOOPA_RBO_MOD:
+            if (op != "div") {
+                op = "mod";
+            }
+
+            // 如果左侧是 0，直接返回 0
+            if (lhs == "x0") {
+                return { "x0" };
+            }
+            // 如果右侧是 0，抛出异常或处理错误
+            if (rhs == "x0") {
+                throw std::runtime_error("Division by zero error");
+            }
+
+            // 一般情况下的除法/取模
+            new_var = getNewTempVar();
+            getGeneratedInstructions().push_back(
+                stringFormat("%s t%d, %s, %s", op, new_var, lhs, rhs));
 
             break;
 
