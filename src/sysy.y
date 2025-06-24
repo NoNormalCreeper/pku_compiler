@@ -41,8 +41,8 @@ using namespace std;
 %token ')' RIGHT_PAREN
 
 // 非终结符的类型定义
-%type <ast_val> FuncDef FuncType Block Stmt Number Exp UnaryExp PrimaryExp
-%type <ast_val> CompUnit
+%type <ast_val> FuncDef FuncType Block Stmt Number
+%type <ast_val> Exp UnaryExp PrimaryExp CompUnit MulExp AddExp
 
 %%
 
@@ -103,11 +103,11 @@ Number
   }
   ;
 
-// Exp ::= UnaryExp
-Exp : UnaryExp
+// Exp ::= AddExp
+Exp : AddExp
   {
     auto exp = std::make_unique<ExpAST>(
-      std::unique_ptr<UnaryExpAST>(static_cast<UnaryExpAST*>($1))
+      std::unique_ptr<AddExpAST>(static_cast<AddExpAST*>($1))
     );
     $$ = exp.release();
   }
@@ -162,6 +162,68 @@ PrimaryExp : '(' Exp ')'
     $$ = primary_exp.release();
   }
   ;
+
+// MulExp ::= UnaryExp | MulExp ("*" | "/" | "%") UnaryExp;
+MulExp: UnaryExp
+  {
+    // MulExp ::= UnaryExp
+    auto mul_exp = std::make_unique<MulExpAST>(
+      std::unique_ptr<UnaryExpAST>(static_cast<UnaryExpAST*>($1))
+    );
+    $$ = mul_exp.release();
+  }
+  | MulExp MUL_OP UnaryExp
+  {
+    // MulExp ::= MulExp ("*" | "/" | "%") UnaryExp;
+    MulOp op;
+    switch ($2) {
+      case '*': op = MUL_OP_MUL; break;
+      case '/': op = MUL_OP_DIV; break;
+      case '%': op = MUL_OP_MOD; break;
+      default: op = MUL_OP_MUL; break;
+    }
+
+    auto mul_exp_op_and_exp = std::make_unique<MulExpOpAndExpAST>(
+      op,
+      std::unique_ptr<MulExpAST>(static_cast<MulExpAST*>($1)),
+      std::unique_ptr<UnaryExpAST>(static_cast<UnaryExpAST*>($3))
+    );
+    
+    auto mul_exp = std::make_unique<MulExpAST>(std::move(mul_exp_op_and_exp));
+    $$ = mul_exp.release();
+  }
+  ;
+
+// AddExp ::= MulExp | AddExp ("+" | "-") MulExp;
+AddExp: MulExp
+  {
+    // AddExp ::= MulExp
+    auto add_exp = std::make_unique<AddExpAST>(
+      std::unique_ptr<MulExpAST>(static_cast<MulExpAST*>($1))
+    );
+    $$ = add_exp.release();
+  }
+  | AddExp ADD_OP MulExp
+  {
+    // AddExp ::= AddExp ("+" | "-") MulExp;
+    AddOp op;
+    switch ($2) {
+      case '+': op = ADD_OP_ADD; break;
+      case '-': op = ADD_OP_SUB; break;
+      default: op = ADD_OP_ADD; break;
+    }
+
+    auto add_exp_op_and_exp = std::make_unique<AddExpOpAndMulExpAST>(
+      op,
+      std::unique_ptr<AddExpAST>(static_cast<AddExpAST*>($1)),
+      std::unique_ptr<MulExpAST>(static_cast<MulExpAST*>($3))
+    );
+    
+    auto add_exp = std::make_unique<AddExpAST>(std::move(add_exp_op_and_exp));
+    $$ = add_exp.release();
+  }
+  ;
+
 
 %%
 
