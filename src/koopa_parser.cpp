@@ -100,8 +100,27 @@ private:
     KoopaProgram program_;
     KoopaRawProgramBuilder builder_;
     koopa_raw_program_t raw_program_ {};
+    int temp_var_count_ = 0;
+    std::vector<std::string> generated_instructions_;
 
 public:
+    int getNewTempVar()
+    {
+        return temp_var_count_++;
+    }
+
+    int clearTempVarCounter()
+    {
+        int old_count = temp_var_count_;
+        temp_var_count_ = 0;
+        return old_count;
+    }
+
+    auto& getGeneratedInstructions()
+    {
+        return generated_instructions_;
+    }
+
     const koopa_raw_program_t* parseToRawProgram(const std::string& input)
     {
         // 解析输入字符串为 program
@@ -186,6 +205,14 @@ public:
         result.push_back(stringFormat("%s:", func_name));
 
         const auto bbs = Visit(func->bbs);
+
+        auto generated = getGeneratedInstructions();
+        auto generated_with_indent = std::vector<std::string>();
+        for (const auto& instr : generated) {
+            generated_with_indent.push_back(stringFormat("  %s", instr));
+        }
+        result.insert(result.end(), generated_with_indent.begin(), generated_with_indent.end());
+
         for (const auto& bb : bbs) {
             result.push_back(stringFormat("  %s", bb));
         }
@@ -215,6 +242,11 @@ public:
             // 访问 integer 指令
             return Visit(kind.data.integer);
             break;
+        case KOOPA_RVT_BINARY:
+            // 访问二元运算指令
+            return Visit(kind.data.binary);
+            break;
+
         default:
             // 其他类型暂时遇不到
             assert(false);
@@ -237,6 +269,50 @@ public:
             return { stringFormat("li a0, %s", Visit(ret.value).at(0)), "ret" };
         }
         return { "ret" };
+    }
+
+    std::vector<std::string> Visit(const koopa_raw_binary_t& binary)
+    {
+        // 访问二元运算指令
+        auto lhs = Visit(binary.lhs);
+        auto rhs = Visit(binary.rhs);
+        assert(lhs.size() == 1 && rhs.size() == 1);
+
+        std::string op;
+        int new_var;
+        switch (binary.op) {
+            case KOOPA_RBO_SUB:
+                op = "sub";
+                new_var = getNewTempVar();
+
+                if (lhs.at(0) == "0") {
+                    // 如果左侧是 0，则直接使用 x0
+                    getGeneratedInstructions().push_back(
+                        stringFormat("sub t%d, x0, %s", new_var, rhs.at(0))
+                    );
+                }
+                break;
+
+            case KOOPA_RBO_EQ:
+                op = "eq";
+                if (rhs.at(0) == "0") {
+                    // 如果右侧是 0
+                    new_var = getNewTempVar();
+                    getGeneratedInstructions().push_back(
+                        stringFormat("li t%d, %s", new_var, lhs.at(0))
+                    );
+                    getGeneratedInstructions().push_back(
+                        stringFormat("xor t%d, t%d, x0", new_var, new_var)
+                    );
+                    getGeneratedInstructions().push_back(
+                        stringFormat("seqz t%d, t%d", new_var, new_var)
+                    );
+                } 
+                break;
+            default:
+                assert(false); // 未处理的操作符
+        }
+        return { stringFormat("t%d", new_var) };
     }
 };
 
