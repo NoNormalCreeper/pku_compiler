@@ -340,22 +340,29 @@ public:
         return {};
     }
 
+    std::tuple<std::string, std::string> initBinaryArgs(const koopa_raw_binary_t& binary)
+    {
+        // 访问二元运算指令
+        auto lhs_reg = Visit(binary.lhs);
+        auto rhs_reg = Visit(binary.rhs);
+        assert(lhs_reg.size() == 1 && rhs_reg.size() == 1);
+
+        if (lhs_reg.at(0) == "0") {
+            lhs_reg.at(0) = "x0"; // 如果左侧是 0，使用 x0
+        }
+        if (rhs_reg.at(0) == "0") {
+            rhs_reg.at(0) = "x0"; // 如果右侧是 0，使用 x0
+        }
+        return { lhs_reg.at(0), rhs_reg.at(0) };
+    }
+
     std::vector<std::string> Visit(const koopa_raw_binary_t& binary)
     {
         // 访问二元运算指令
-        auto lhs = Visit(binary.lhs);
-        auto rhs = Visit(binary.rhs);
-        assert(lhs.size() == 1 && rhs.size() == 1);
-
-        if (lhs.at(0) == "0") {
-            lhs.at(0) = "x0"; // 如果左侧是 0，使用 x0
-        }
-        if (rhs.at(0) == "0") {
-            rhs.at(0) = "x0"; // 如果右侧是 0，使用 x0
-        }
+        auto [lhs, rhs] = initBinaryArgs(binary);
 
         std::string op;
-        int new_var;
+        int new_var = getNewTempVar();
         switch (binary.op) {
         case KOOPA_RBO_SUB:
             op = "sub";
@@ -365,44 +372,45 @@ public:
             //           << lhs.at(0) << " - " << rhs.at(0)
             //           << " to new var " << new_var << std::endl;
 
-            if (lhs.at(0) == "x0") {
+            if (lhs == "x0") {
                 // 如果左侧是 0，则直接使用 x0
                 getGeneratedInstructions().push_back(
-                    stringFormat("sub t%d, x0, %s", new_var, rhs.at(0)));
-            } else if (rhs.at(0) == "x0") {
+                    stringFormat("sub t%d, x0, %s", new_var, rhs));
+            } else if (rhs == "x0") {
                 // 如果右侧是 0，则直接使用左侧
-                if (lhs.at(0).find("t") != std::string::npos) {
+                if (lhs.find("t") != std::string::npos) {
                     // 如果左侧是寄存器，直接移动
                     getGeneratedInstructions().push_back(
-                        stringFormat("mv t%d, %s", new_var, lhs.at(0))
+                        stringFormat("mv t%d, %s", new_var, lhs)
                     );
                 } else {
                     // 立即数
                     getGeneratedInstructions().push_back(
-                        stringFormat("li t%d, %s", new_var, lhs.at(0))
+                        stringFormat("li t%d, %s", new_var, lhs)
                     );
                 }
             } else {
                 // 一般情况下的减法
                 getGeneratedInstructions().push_back(
-                    stringFormat("sub t%d, %s, %s", new_var, lhs.at(0), rhs.at(0))
+                    stringFormat("sub t%d, %s, %s", new_var, lhs, rhs)
                 );
-
             }
             break;
+        
+        case KOOPA_RBO_ADD:
 
         case KOOPA_RBO_EQ:
             op = "eq";
             new_var = getNewTempVar();
 
-            if (rhs.at(0) == "x0") {
+            if (rhs == "x0") {
                 // 如果右侧是 0，使用 seqz 指令
                 getGeneratedInstructions().push_back(
-                    stringFormat("seqz t%d, %s", new_var, lhs.at(0)));
+                    stringFormat("seqz t%d, %s", new_var, lhs));
             } else {
                 // 一般情况下的相等比较
                 getGeneratedInstructions().push_back(
-                    stringFormat("xor t%d, %s, %s", new_var, lhs.at(0), rhs.at(0)));
+                    stringFormat("xor t%d, %s, %s", new_var, lhs, rhs));
                 getGeneratedInstructions().push_back(
                     stringFormat("seqz t%d, t%d", new_var, new_var));
             }
