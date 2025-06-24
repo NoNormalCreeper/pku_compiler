@@ -23,11 +23,24 @@ class ExpAST;
 class PrimaryExpAST;
 class UnaryExpOpAndExpAST;
 class UnaryExpAST;
+class AddExpAST;
+class MulExpAST;
 
 enum UnaryOp : std::uint8_t {
     UNARY_OP_POSITIVE, // +
     UNARY_OP_NEGATIVE, // -
     UNARY_OP_NOT, // !
+};
+
+enum MulOp : std::uint8_t {
+    MUL_OP_MUL, // *
+    MUL_OP_DIV, // /
+    MUL_OP_MOD, // %
+};
+
+enum AddOp : std::uint8_t {
+    ADD_OP_ADD, // +
+    ADD_OP_SUB, // -
 };
 
 // 所有 AST 的基类

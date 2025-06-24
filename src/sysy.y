@@ -35,6 +35,8 @@ using namespace std;
 %token <str_val> IDENT
 %token <int_val> INT_CONST
 %token <char_val> UNARY_OP
+%token <char_val> MUL_OP
+%token <char_val> ADD_OP
 %token '(' LEFT_PAREN
 %token ')' RIGHT_PAREN
 
