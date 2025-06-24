@@ -48,9 +48,6 @@ public:
         static int temp_var_count = 0;
         temp_var_count = 0;
     }
-
-private:
-    int temp_var_count = 0; // 跟踪生成的 IR 的表达式（临时变量）数量
 };
 
 // Number
@@ -94,6 +91,7 @@ public:
     StmtAST(std::unique_ptr<ExpAST> exp);
 
     void Dump() const override;
+    std::string toKoopa() const override;
     std::string toKoopa() ;
 };
 

@@ -62,6 +62,14 @@ void StmtAST::Dump() const
     std::cout << "; }";
 }
 
+// const版本，符合基类接口
+std::string StmtAST::toKoopa() const
+{
+    // 对于const版本，我们需要调用非const版本
+    // 这里使用const_cast，在这种情况下是安全的
+    return const_cast<StmtAST*>(this)->toKoopa();
+}
+
 std::string StmtAST::toKoopa() 
 {
     if (expression) {
