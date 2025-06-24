@@ -5,7 +5,9 @@
 #include <cassert>
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <vector>
+#include <iostream>
 
 // RAII wrapper for koopa_program_t
 class KoopaProgram {
@@ -102,6 +104,7 @@ private:
     koopa_raw_program_t raw_program_ {};
     int temp_var_count_ = 0;
     std::vector<std::string> generated_instructions_;
+    std::unordered_map<const void*, std::string> value_to_register_; // 值到寄存器的映射
 
 public:
     int getNewTempVar()
@@ -113,6 +116,7 @@ public:
     {
         int old_count = temp_var_count_;
         temp_var_count_ = 0;
+        value_to_register_.clear();
         return old_count;
     }
 
@@ -137,6 +141,10 @@ public:
     {
         // 执行一些其他的必要操作
         // ...
+
+        getGeneratedInstructions().clear();
+        clearTempVarCounter();
+
         // 访问所有全局变量
         const auto values = Visit(program.values);
         // 访问所有函数（目前只有一个）
@@ -166,6 +174,8 @@ public:
             auto ptr = slice.buffer[i];
             std::vector<std::string> item_result;
             // 根据 slice 的 kind 决定将 ptr 视作何种元素
+            std::cout << "[DEBUG] Visiting slice item " << i 
+                      << " of kind " << slice.kind << std::endl;
             switch (slice.kind) {
             case KOOPA_RSIK_FUNCTION:
                 // 访问函数
@@ -193,8 +203,13 @@ public:
     {
         // 执行一些其他的必要操作
         // ...
+
+        // 清空之前的指令
+        getGeneratedInstructions().clear();
+        clearTempVarCounter();
+
         // 访问所有基本块
-        std::vector<std::string> result;
+        std::vector<std::string> result; 
         
         // Extract function name (remove @ prefix if present)
         std::string func_name = func->name;
@@ -206,16 +221,24 @@ public:
 
         const auto bbs = Visit(func->bbs);
 
-        auto generated = getGeneratedInstructions();
-        auto generated_with_indent = std::vector<std::string>();
-        for (const auto& instr : generated) {
-            generated_with_indent.push_back(stringFormat("  %s", instr));
-        }
-        result.insert(result.end(), generated_with_indent.begin(), generated_with_indent.end());
+        // auto generated = getGeneratedInstructions();
+        // auto generated_with_indent = std::vector<std::string>();
+        // for (const auto& instr : generated) {
+        //     generated_with_indent.push_back(stringFormat("  %s", instr));
+        // }
+        // result.insert(result.end(), generated_with_indent.begin(), generated_with_indent.end());
 
-        for (const auto& bb : bbs) {
-            result.push_back(stringFormat("  %s", bb));
+        // for (const auto& bb : bbs) {
+        //     result.push_back(stringFormat("  %s", bb));
+        // }
+        // return result;
+
+        // 添加生成的指令到结果中
+        auto generated = getGeneratedInstructions();
+        for (const auto& instr : generated) {
+            result.push_back(stringFormat("  %s", instr));
         }
+
         return result;
     }
 
@@ -226,37 +249,69 @@ public:
         // ...
         // 访问所有指令
         return Visit(bb->insts);
+        return {}; // 返回空向量，因为指令已经添加到 generated_instructions_ 中
     }
 
     // 访问指令
     std::vector<std::string> Visit(const koopa_raw_value_t& value)
     {
+        // 检查是否已经处理过这个值
+        auto it = value_to_register_.find(value);
+        if (it != value_to_register_.end()) {
+            return { it->second };
+        }
+
         // 根据指令类型判断后续需要如何访问
         const auto& kind = value->kind;
+        std::vector<std::string> result;
+
         switch (kind.tag) {
         case KOOPA_RVT_RETURN:
             // 访问 return 指令
-            return Visit(kind.data.ret);
+            // std::cout << "[DEBUG] Visiting return instruction" << std::endl;
+            result = Visit(kind.data.ret);
             break;
         case KOOPA_RVT_INTEGER:
             // 访问 integer 指令
-            return Visit(kind.data.integer);
+            // std::cout << "[DEBUG] Visiting integer instruction" << std::endl;
+            result = Visit(kind.data.integer);
             break;
         case KOOPA_RVT_BINARY:
-            // 访问二元运算指令
-            return Visit(kind.data.binary);
+            // 访问二元运算指
+            // std::cout << "[DEBUG] Visiting binary instruction" << std::endl;
+            result = Visit(kind.data.binary);
             break;
 
         default:
             // 其他类型暂时遇不到
             assert(false);
         }
+
+        // 如果结果不为空且不是 return 指令，缓存结果
+        if (!result.empty() && kind.tag != KOOPA_RVT_RETURN) {
+            value_to_register_[value] = result[0];
+        }
+
+        return result;
     }
 
     std::vector<std::string> Visit(const koopa_raw_integer_t& integer)
     {
         // 返回整数值的字符串表示
-        return { std::to_string(integer.value) };
+        // return { std::to_string(integer.value) };
+        // 假设所有用到的数字都需要存在寄存器里（以后再来优化）
+
+        if (integer.value == 0) {
+            return { "0" };
+        }
+        
+        // 其他数字分配寄存器
+        int new_var = getNewTempVar();
+        std::cout << "[DEBUG] Visiting integer value: " << integer.value << " to new var " << new_var << std::endl;
+        getGeneratedInstructions().push_back(
+            stringFormat("li t%d, %d", new_var, integer.value)
+        );
+        return { stringFormat("t%d", new_var) };
     }
 
     std::vector<std::string> Visit(const koopa_raw_return_t& ret)
@@ -264,11 +319,28 @@ public:
         // 访问 return 指令的值
         if (ret.value) {
             auto visited = Visit(ret.value);
+            std::cout << "[DEBUG] Visiting return value: " << visited.at(0) << std::endl;
             assert(visited.size() == 1);
 
-            return { stringFormat("li a0, %s", Visit(ret.value).at(0)), "ret" };
+            if (visited.at(0) == "0") {
+                // 如果返回值是 0，则直接使用 x0
+                getGeneratedInstructions().push_back("li a0, 0");
+            } else if (visited.at(0).find("t") != std::string::npos) {
+                // 否则将返回值加载到 a0 寄存器
+                getGeneratedInstructions().push_back(
+                    stringFormat("mv a0, %s", visited.at(0))
+                );
+            } else {
+                // 如果返回值是数字
+                getGeneratedInstructions().push_back(
+                    stringFormat("li a0, %s", visited.at(0))
+                );
+            }
+            getGeneratedInstructions().push_back("ret");
+            return {}; // 返回空，因为已经添加到指令列表中
         }
-        return { "ret" };
+        getGeneratedInstructions().push_back("ret");
+        return {};
     }
 
     std::vector<std::string> Visit(const koopa_raw_binary_t& binary)
@@ -285,6 +357,10 @@ public:
                 op = "sub";
                 new_var = getNewTempVar();
 
+                std::cout << "[DEBUG] Visiting binary operation: " 
+                          << lhs.at(0) << " - " << rhs.at(0) 
+                          << " to new var " << new_var << std::endl;
+
                 if (lhs.at(0) == "0") {
                     // 如果左侧是 0，则直接使用 x0
                     getGeneratedInstructions().push_back(
@@ -298,6 +374,10 @@ public:
                 if (rhs.at(0) == "0") {
                     // 如果右侧是 0
                     new_var = getNewTempVar();
+
+                    std::cout << "[DEBUG] Visiting binary operation: " 
+                              << lhs.at(0) << " == 0 to new var " << new_var << std::endl;
+
                     getGeneratedInstructions().push_back(
                         stringFormat("li t%d, %s", new_var, lhs.at(0))
                     );
