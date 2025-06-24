@@ -1,10 +1,12 @@
 #pragma once
 
+#include <cstdint>
 #include <iostream>
 #include <map>
 #include <memory>
 #include <string>
 #include <variant>
+#include <vector>
 
 #include "string_format.h"
 
@@ -35,6 +37,17 @@ public:
 
     virtual void Dump() const;
     virtual std::string toKoopa() const;
+
+    int getTempVarCount() const {
+        return temp_var_count;
+    }
+    int getNewTempVar() {
+        temp_var_count++;
+        return temp_var_count - 1;  // 返回临时变量的索引（从 0 开始）
+    }
+
+private:
+    int temp_var_count = 0; // 跟踪生成的 IR 的表达式（临时变量）数量
 };
 
 // Number
@@ -73,10 +86,12 @@ public:
     // std::unique_ptr<NumberAST> number;
     std::unique_ptr<ExpAST> expression;
 
+    std::vector<std::string> generated_instructions; // 存储中间过程用于计算的 IR 指令
+
     StmtAST(std::unique_ptr<ExpAST> exp);
 
     void Dump() const override;
-    std::string toKoopa() const override;
+    std::string toKoopa() ;
 };
 
 // Block
@@ -127,6 +142,7 @@ public:
         : expression(std::move(number)) {}
 
     void Dump() const override;
+    std::string toKoopa(std::vector<std::string>& generated_instructions);
 };
 
 class UnaryExpAST : public BaseAST {
@@ -139,6 +155,7 @@ public:
         : expression(std::move(unary_exp_op_and_exp)) {}
     
     void Dump() const override;
+    std::string toKoopa(std::vector<std::string>& generated_instructions);
 };
 
 // UnaryOp UnaryExp
@@ -151,6 +168,7 @@ public:
         : op(operation), latter_expression(std::move(exp)) {}
     
     void Dump() const override;
+    std::string toKoopa(std::vector<std::string>& generated_instructions);
 };
 
 class ExpAST : public BaseAST {
@@ -161,4 +179,5 @@ public:
         : unary_exp(std::move(unary_exp)) {}
     
     void Dump() const override;
+    std::string toKoopa(std::vector<std::string>& generated_instructions);
 };

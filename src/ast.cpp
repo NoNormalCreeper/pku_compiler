@@ -1,4 +1,5 @@
 #include "ast.h"
+#include "string_format.h"
 #include <cmath>
 
 // BaseAST implementations
@@ -61,10 +62,18 @@ void StmtAST::Dump() const
     std::cout << "; }";
 }
 
-std::string StmtAST::toKoopa() const
+std::string StmtAST::toKoopa() 
 {
     if (expression) {
-        return stringFormat("ret %s\n", expression->toKoopa());
+        std::string result = "";
+        auto exp = expression->toKoopa(generated_instructions);
+        if (!generated_instructions.empty()) {
+            for (const auto& instr : generated_instructions) {
+                result += stringFormat("  %s\n", instr);
+            }
+        }
+        
+        return stringFormat("%s  ret %s\n", result, exp);
     }
     return "ret void\n"; // 如果没有数字，返回 void
 }
