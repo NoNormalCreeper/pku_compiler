@@ -19,7 +19,7 @@ for file in "$SCRIPT_DIR"/*; do
         
         # 运行编译命令
         echo -e "\033[1;34m运行编译命令...\033[0m"
-        build/compiler -riscv "$file" -o $SCRIPT_DIR/../../build/$filename.S
+        build/compiler -koopa "$file" -o $SCRIPT_DIR/../../build/$filename.S
         
         echo -e "\033[1;33m$filename 测试完成\033[0m"
         echo "----------------------------------------"
