@@ -24,7 +24,9 @@ class PrimaryExpAST;
 class UnaryExpOpAndExpAST;
 class UnaryExpAST;
 class AddExpAST;
+class AddExpOpAndMulExpAST;
 class MulExpAST;
+class MulExpOpAndExpAST;
 
 enum UnaryOp : std::uint8_t {
     UNARY_OP_POSITIVE, // +
@@ -187,11 +189,65 @@ public:
 
 class ExpAST : public BaseAST {
 public:
-    std::unique_ptr<UnaryExpAST> unary_exp;
+    std::unique_ptr<AddExpAST> add_exp;
 
-    ExpAST(std::unique_ptr<UnaryExpAST> unary_exp)
-        : unary_exp(std::move(unary_exp)) {}
+    ExpAST(std::unique_ptr<AddExpAST> add_exp)
+        : add_exp(std::move(add_exp)) {}
     
     void Dump() const override;
     std::string toKoopa(std::vector<std::string>& generated_instructions);
 };
+
+class MulExpOpAndExpAST : public BaseAST {
+public:
+    MulOp op; // 乘法运算符
+    std::unique_ptr<MulExpAST> first_expression;
+    std::unique_ptr<UnaryExpAST> latter_expression;
+
+    MulExpOpAndExpAST(MulOp operation, std::unique_ptr<MulExpAST> first_exp, std::unique_ptr<UnaryExpAST> latter_exp)
+        : op(operation), first_expression(std::move(first_exp)), latter_expression(std::move(latter_exp)) {}
+
+    void Dump() const override;
+    std::string toKoopa(std::vector<std::string>& generated_instructions);
+};
+
+class MulExpAST : public BaseAST {
+public:
+    std::variant<std::unique_ptr<UnaryExpAST>, std::unique_ptr<MulExpOpAndExpAST>> expression;
+    
+    MulExpAST(std::unique_ptr<UnaryExpAST> unary_exp)
+        : expression(std::move(unary_exp)) {}
+    MulExpAST(std::unique_ptr<MulExpOpAndExpAST> mul_exp_op_and_exp)
+        : expression(std::move(mul_exp_op_and_exp)) {}
+
+    void Dump() const override;
+    std::string toKoopa(std::vector<std::string>& generated_instructions);
+};
+
+class AddExpOpAndMulExpAST : public BaseAST {
+public:
+    AddOp op; // 加法运算符
+    std::unique_ptr<AddExpAST> first_expression;
+    std::unique_ptr<MulExpAST> latter_expression;
+
+    AddExpOpAndMulExpAST(AddOp operation, std::unique_ptr<AddExpAST> first_exp, std::unique_ptr<MulExpAST> latter_exp)
+        : op(operation), first_expression(std::move(first_exp)), latter_expression(std::move(latter_exp)) {}
+
+    void Dump() const override;
+    std::string toKoopa(std::vector<std::string>& generated_instructions);
+};
+
+class AddExpAST : public BaseAST {
+public:
+    std::variant<std::unique_ptr<MulExpAST>, std::unique_ptr<AddExpOpAndMulExpAST>> expression;
+
+    AddExpAST(std::unique_ptr<MulExpAST> mul_exp)
+        : expression(std::move(mul_exp)) {}
+    AddExpAST(std::unique_ptr<AddExpOpAndMulExpAST> add_exp_op_and_mul_exp)
+        : expression(std::move(add_exp_op_and_mul_exp)) {}
+    
+    void Dump() const override;
+    std::string toKoopa(std::vector<std::string>& generated_instructions);
+};
+
+
