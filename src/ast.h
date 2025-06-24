@@ -38,12 +38,15 @@ public:
     virtual void Dump() const;
     virtual std::string toKoopa() const;
 
-    int getTempVarCount() const {
-        return temp_var_count;
+    static int getNewTempVar() {
+        static int temp_var_count = 0;
+        return temp_var_count++;
     }
-    int getNewTempVar() {
-        temp_var_count++;
-        return temp_var_count - 1;  // 返回临时变量的索引（从 0 开始）
+
+    // 重置临时变量计数器（在每个函数开始时调用）
+    static void resetTempVarCounter() {
+        static int temp_var_count = 0;
+        temp_var_count = 0;
     }
 
 private:

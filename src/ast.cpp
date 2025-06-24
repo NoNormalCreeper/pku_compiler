@@ -65,6 +65,11 @@ void StmtAST::Dump() const
 std::string StmtAST::toKoopa() 
 {
     if (expression) {
+        // 重置临时变量计数器
+        BaseAST::resetTempVarCounter();
+        // 清空指令列表
+        generated_instructions.clear();
+
         std::string result = "";
         auto exp = expression->toKoopa(generated_instructions);
         if (!generated_instructions.empty()) {
@@ -75,7 +80,7 @@ std::string StmtAST::toKoopa()
         
         return stringFormat("%s  ret %s\n", result, exp);
     }
-    return "ret void\n"; // 如果没有数字，返回 void
+    return "  ret void\n"; // 如果没有数字，返回 void
 }
 
 // BlockAST implementations
@@ -98,7 +103,7 @@ void BlockAST::Dump() const
 std::string BlockAST::toKoopa() const
 {
     if (stmt) {
-        return stringFormat("  %s", stmt->toKoopa());
+        return stringFormat("%s", stmt->toKoopa());
     }
     return "";
 }
