@@ -207,7 +207,7 @@ public:
     MulExpOpAndExpAST(MulOp operation, std::unique_ptr<MulExpAST> first_exp, std::unique_ptr<UnaryExpAST> latter_exp)
         : op(operation), first_expression(std::move(first_exp)), latter_expression(std::move(latter_exp)) {}
 
-    void Dump() const override;
+    // void Dump() const override;
     std::string toKoopa(std::vector<std::string>& generated_instructions);
 };
 
@@ -220,7 +220,7 @@ public:
     MulExpAST(std::unique_ptr<MulExpOpAndExpAST> mul_exp_op_and_exp)
         : expression(std::move(mul_exp_op_and_exp)) {}
 
-    void Dump() const override;
+    // void Dump() const override;
     std::string toKoopa(std::vector<std::string>& generated_instructions);
 };
 
@@ -233,7 +233,7 @@ public:
     AddExpOpAndMulExpAST(AddOp operation, std::unique_ptr<AddExpAST> first_exp, std::unique_ptr<MulExpAST> latter_exp)
         : op(operation), first_expression(std::move(first_exp)), latter_expression(std::move(latter_exp)) {}
 
-    void Dump() const override;
+    // void Dump() const override;
     std::string toKoopa(std::vector<std::string>& generated_instructions);
 };
 
@@ -246,7 +246,7 @@ public:
     AddExpAST(std::unique_ptr<AddExpOpAndMulExpAST> add_exp_op_and_mul_exp)
         : expression(std::move(add_exp_op_and_mul_exp)) {}
     
-    void Dump() const override;
+    // void Dump() const override;
     std::string toKoopa(std::vector<std::string>& generated_instructions);
 };
 

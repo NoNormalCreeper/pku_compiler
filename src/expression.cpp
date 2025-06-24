@@ -50,3 +50,58 @@ std::string UnaryExpOpAndExpAST::toKoopa(std::vector<std::string>& generated_ins
     }
 
 }
+
+std::string AddExpAST::toKoopa(std::vector<std::string>& generated_instructions)
+{
+    if (std::holds_alternative<std::unique_ptr<AddExpOpAndMulExpAST>>(expression)) {
+        return std::get<std::unique_ptr<AddExpOpAndMulExpAST>>(expression)->toKoopa(generated_instructions);
+    }
+    return std::get<std::unique_ptr<MulExpAST>>(expression)->toKoopa(generated_instructions);
+}
+
+std::string MulExpAST::toKoopa(std::vector<std::string>& generated_instructions)
+{
+    if (std::holds_alternative<std::unique_ptr<MulExpOpAndExpAST>>(expression)) {
+        return std::get<std::unique_ptr<MulExpOpAndExpAST>>(expression)->toKoopa(generated_instructions);
+    }
+    return std::get<std::unique_ptr<UnaryExpAST>>(expression)->toKoopa(generated_instructions);
+}
+
+std::string AddExpOpAndMulExpAST::toKoopa(std::vector<std::string>& generated_instructions)
+{
+    auto first_exp = first_expression->toKoopa(generated_instructions);
+    auto second_exp = latter_expression->toKoopa(generated_instructions);
+    auto new_var = BaseAST::getNewTempVar();
+    
+    switch (op) {
+        case ADD_OP_ADD:
+            generated_instructions.push_back(stringFormat("%%%d = add %s, %s", new_var, first_exp, second_exp));
+            break;
+        case ADD_OP_SUB:
+            generated_instructions.push_back(stringFormat("%%%d = sub %s, %s", new_var, first_exp, second_exp));
+            break;
+    }
+    
+    return stringFormat("%%%d", new_var);
+}
+
+std::string MulExpOpAndExpAST::toKoopa(std::vector<std::string>& generated_instructions)
+{
+    auto first_exp = first_expression->toKoopa(generated_instructions);
+    auto second_exp = latter_expression->toKoopa(generated_instructions);
+    auto new_var = BaseAST::getNewTempVar();
+    
+    switch (op) {
+        case MUL_OP_MUL:
+            generated_instructions.push_back(stringFormat("%%%d = mul %s, %s", new_var, first_exp, second_exp));
+            break;
+        case MUL_OP_DIV:
+            generated_instructions.push_back(stringFormat("%%%d = div %s, %s", new_var, first_exp, second_exp));
+            break;
+        case MUL_OP_MOD:
+            generated_instructions.push_back(stringFormat("%%%d = mod %s, %s", new_var, first_exp, second_exp));
+            break;
+    }
+    
+    return stringFormat("%%%d", new_var);
+}

@@ -222,6 +222,25 @@ AddExp: MulExp
     auto add_exp = std::make_unique<AddExpAST>(std::move(add_exp_op_and_exp));
     $$ = add_exp.release();
   }
+  | AddExp UNARY_OP MulExp // 疑似加减号会被识别为 UNARY_OP
+    {
+    // AddExp ::= AddExp ("+" | "-") MulExp;
+    AddOp op;
+    switch ($2) {
+      case '+': op = ADD_OP_ADD; break;
+      case '-': op = ADD_OP_SUB; break;
+      default: op = ADD_OP_ADD; break;
+    }
+
+    auto add_exp_op_and_exp = std::make_unique<AddExpOpAndMulExpAST>(
+      op,
+      std::unique_ptr<AddExpAST>(static_cast<AddExpAST*>($1)),
+      std::unique_ptr<MulExpAST>(static_cast<MulExpAST*>($3))
+    );
+    
+    auto add_exp = std::make_unique<AddExpAST>(std::move(add_exp_op_and_exp));
+    $$ = add_exp.release();
+  }
   ;
 
 
