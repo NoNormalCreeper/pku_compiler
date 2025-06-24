@@ -369,6 +369,25 @@ public:
                 // 如果左侧是 0，则直接使用 x0
                 getGeneratedInstructions().push_back(
                     stringFormat("sub t%d, x0, %s", new_var, rhs.at(0)));
+            } else if (rhs.at(0) == "x0") {
+                // 如果右侧是 0，则直接使用左侧
+                if (lhs.at(0).find("t") != std::string::npos) {
+                    // 如果左侧是寄存器，直接移动
+                    getGeneratedInstructions().push_back(
+                        stringFormat("mv t%d, %s", new_var, lhs.at(0))
+                    );
+                } else {
+                    // 立即数
+                    getGeneratedInstructions().push_back(
+                        stringFormat("li t%d, %s", new_var, lhs.at(0))
+                    );
+                }
+            } else {
+                // 一般情况下的减法
+                getGeneratedInstructions().push_back(
+                    stringFormat("sub t%d, %s, %s", new_var, lhs.at(0), rhs.at(0))
+                );
+
             }
             break;
 
