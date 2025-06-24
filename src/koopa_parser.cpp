@@ -398,6 +398,23 @@ public:
             break;
         
         case KOOPA_RBO_ADD:
+            op = "add";
+
+            // 如果左侧或右侧是 0，直接使用另一个操作数
+            if (lhs == "x0") {
+                // 如果左侧是 0，直接返回右侧
+                return { rhs };
+            } else if (rhs == "x0") {
+                // 如果右侧是 0，直接返回左侧
+                return { lhs };
+            }
+
+            // 一般情况下的加法
+            getGeneratedInstructions().push_back(
+                stringFormat("add t%d, %s, %s", new_var, lhs, rhs)
+            );
+
+            break;
 
         case KOOPA_RBO_EQ:
             op = "eq";
