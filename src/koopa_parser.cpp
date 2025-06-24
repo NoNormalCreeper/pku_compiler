@@ -443,7 +443,7 @@ public:
             op = "div";
         case KOOPA_RBO_MOD:
             if (op != "div") {
-                op = "mod";
+                op = "rem";
             }
 
             // 如果左侧是 0，直接返回 0
