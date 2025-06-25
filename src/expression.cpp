@@ -171,13 +171,24 @@ std::string LAndExpAST::toKoopa(std::vector<std::string>& generated_instructions
 
 std::string LAndExpOpAndEqExpAST::toKoopa(std::vector<std::string>& generated_instructions)
 {
+    // a && b 等价于：
+    // %left_bool = ne %a, 0    // 将左操作数转为布尔值
+    // %right_bool = ne %b, 0   // 将右操作数转为布尔值  
+    // %result = and %left_bool, %right_bool  // 按位与
+
+    auto left_bool_var = BaseAST::getNewTempVar();
+    auto right_bool_var = BaseAST::getNewTempVar();
+    auto result_var = BaseAST::getNewTempVar();
+
     auto first_exp = first_expression->toKoopa(generated_instructions);
     auto second_exp = latter_expression->toKoopa(generated_instructions);
     auto new_var = BaseAST::getNewTempVar();
     
-    generated_instructions.push_back(stringFormat("%%%d = and %s, %s", new_var, first_exp, second_exp));
+    generated_instructions.push_back(stringFormat("%%%d = ne %s, 0", left_bool_var, first_exp));
+    generated_instructions.push_back(stringFormat("%%%d = ne %s, 0", right_bool_var, second_exp));
+    generated_instructions.push_back(stringFormat("%%%d = and %%%d, %%%d", result_var, left_bool_var, right_bool_var));
     
-    return stringFormat("%%%d", new_var);
+    return stringFormat("%%%d", result_var);
 }
 
 std::string LOrExpAST::toKoopa(std::vector<std::string>& generated_instructions)
@@ -191,9 +202,15 @@ std::string LOrExpOpAndLAndExpAST::toKoopa(std::vector<std::string>& generated_i
 {
     auto first_exp = first_expression->toKoopa(generated_instructions);
     auto second_exp = latter_expression->toKoopa(generated_instructions);
-    auto new_var = BaseAST::getNewTempVar();
     
-    generated_instructions.push_back(stringFormat("%%%d = or %s, %s", new_var, first_exp, second_exp));
+    // 将操作数转换为布尔值（非零为1，零为0）
+    auto left_bool_var = BaseAST::getNewTempVar();
+    auto right_bool_var = BaseAST::getNewTempVar();
+    auto result_var = BaseAST::getNewTempVar();
     
-    return stringFormat("%%%d", new_var);
+    generated_instructions.push_back(stringFormat("%%%d = ne %s, 0", left_bool_var, first_exp));
+    generated_instructions.push_back(stringFormat("%%%d = ne %s, 0", right_bool_var, second_exp));
+    generated_instructions.push_back(stringFormat("%%%d = or %%%d, %%%d", result_var, left_bool_var, right_bool_var));
+    
+    return stringFormat("%%%d", result_var);
 }
