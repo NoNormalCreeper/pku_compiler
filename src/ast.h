@@ -27,6 +27,14 @@ class AddExpAST;
 class AddExpOpAndMulExpAST;
 class MulExpAST;
 class MulExpOpAndExpAST;
+class RelExpAST;
+class RelExpOpAndAddExpAST;
+class EqExpAST;
+class EqExpOpAndRelExpAST;
+class LAndExpAST;
+class LAndExpOpAndEqExpAST;
+class LOrExpAST;
+class LOrExpOpAndLAndExpAST;
 
 enum UnaryOp : std::uint8_t {
     UNARY_OP_POSITIVE, // +
@@ -44,6 +52,21 @@ enum AddOp : std::uint8_t {
     ADD_OP_ADD, // +
     ADD_OP_SUB, // -
 };
+
+enum RelOp : std::uint8_t {
+    REL_OP_LT, // <
+    REL_OP_LE, // <=
+    REL_OP_GT, // >
+    REL_OP_GE, // >=
+};
+
+enum EqOp : std::uint8_t {
+    EQ_OP_EQ, // ==
+    EQ_OP_NE, // !=
+};
+
+// LAndOp 和 LOrOp 不需要枚举，因为它们没有额外的操作符
+
 
 // 所有 AST 的基类
 class BaseAST {
@@ -189,10 +212,10 @@ public:
 
 class ExpAST : public BaseAST {
 public:
-    std::unique_ptr<AddExpAST> add_exp;
+    std::unique_ptr<LOrExpAST> expression;
 
-    ExpAST(std::unique_ptr<AddExpAST> add_exp)
-        : add_exp(std::move(add_exp)) {}
+    ExpAST(std::unique_ptr<LOrExpAST> add_exp)
+        : expression(std::move(add_exp)) {}
     
     void Dump() const override;
     std::string toKoopa(std::vector<std::string>& generated_instructions);
@@ -250,4 +273,105 @@ public:
     std::string toKoopa(std::vector<std::string>& generated_instructions);
 };
 
+class RelExpOpAndAddExpAST : public BaseAST {
+public:
+    RelOp op; // 关系运算符
+    std::unique_ptr<RelExpAST> first_expression;
+    std::unique_ptr<AddExpAST> latter_expression;
+
+    RelExpOpAndAddExpAST(RelOp operation, std::unique_ptr<RelExpAST> first_exp, std::unique_ptr<AddExpAST> latter_exp)
+        : op(operation), first_expression(std::move(first_exp)), latter_expression(std::move(latter_exp)) {}
+
+    // void Dump() const override;
+    std::string toKoopa(std::vector<std::string>& generated_instructions);
+};
+
+class RelExpAST : public BaseAST {
+public:
+    std::variant<std::unique_ptr<AddExpAST>, std::unique_ptr<RelExpOpAndAddExpAST>> expression;
+
+    RelExpAST(std::unique_ptr<AddExpAST> add_exp)
+        : expression(std::move(add_exp)) {}
+    RelExpAST(std::unique_ptr<RelExpOpAndAddExpAST> rel_exp)
+        : expression(std::move(rel_exp)) {}
+    
+    // void Dump() const override;
+    std::string toKoopa(std::vector<std::string>& generated_instructions);
+};
+
+class EqExpOpAndRelExpAST : public BaseAST {
+public:
+    EqOp op; // 相等运算符
+    std::unique_ptr<EqExpAST> first_expression;
+    std::unique_ptr<RelExpAST> latter_expression;
+
+    EqExpOpAndRelExpAST(EqOp operation, std::unique_ptr<EqExpAST> first_exp, std::unique_ptr<RelExpAST> latter_exp)
+        : op(operation), first_expression(std::move(first_exp)), latter_expression(std::move(latter_exp)) {}
+    
+    // void Dump() const override;
+    std::string toKoopa(std::vector<std::string>& generated_instructions);
+};
+
+class EqExpAST : public BaseAST {
+public:
+    std::variant<std::unique_ptr<RelExpAST>, std::unique_ptr<EqExpOpAndRelExpAST>> expression;
+
+    EqExpAST(std::unique_ptr<RelExpAST> rel_exp)
+        : expression(std::move(rel_exp)) {}
+    EqExpAST(std::unique_ptr<EqExpOpAndRelExpAST> eq_exp_op_and_rel_exp)
+        : expression(std::move(eq_exp_op_and_rel_exp)) {}
+    
+    // void Dump() const override;
+    std::string toKoopa(std::vector<std::string>& generated_instructions);
+};
+
+class LAndExpOpAndEqExpAST : public BaseAST {
+public:
+    std::unique_ptr<LAndExpAST> first_expression;
+    std::unique_ptr<EqExpAST> latter_expression;
+
+    LAndExpOpAndEqExpAST(std::unique_ptr<LAndExpAST> first_exp, std::unique_ptr<EqExpAST> latter_exp)
+        : first_expression(std::move(first_exp)), latter_expression(std::move(latter_exp)) {}
+    
+    // void Dump() const override;
+    std::string toKoopa(std::vector<std::string>& generated_instructions);
+};
+
+class LAndExpAST : public BaseAST {
+public:
+    std::variant<std::unique_ptr<EqExpAST>, std::unique_ptr<LAndExpOpAndEqExpAST>> expression;
+
+    LAndExpAST(std::unique_ptr<EqExpAST> eq_exp)
+        : expression(std::move(eq_exp)) {}
+    LAndExpAST(std::unique_ptr<LAndExpOpAndEqExpAST> land_exp_op_and_eq_exp)
+        : expression(std::move(land_exp_op_and_eq_exp)) {}
+
+    // void Dump() const override;
+    std::string toKoopa(std::vector<std::string>& generated_instructions);
+};
+
+class LOrExpOpAndLAndExpAST : public BaseAST {
+public:
+    std::unique_ptr<LOrExpAST> first_expression;
+    std::unique_ptr<LAndExpAST> latter_expression;
+
+    LOrExpOpAndLAndExpAST(std::unique_ptr<LOrExpAST> first_exp, std::unique_ptr<LAndExpAST> latter_exp)
+        : first_expression(std::move(first_exp)), latter_expression(std::move(latter_exp)) {}
+    
+    // void Dump() const override;
+    std::string toKoopa(std::vector<std::string>& generated_instructions);
+};
+
+class LOrExpAST : public BaseAST {
+public:
+    std::variant<std::unique_ptr<LAndExpAST>, std::unique_ptr<LOrExpOpAndLAndExpAST>> expression;
+
+    LOrExpAST(std::unique_ptr<LAndExpAST> land_exp)
+        : expression(std::move(land_exp)) {}
+    LOrExpAST(std::unique_ptr<LOrExpOpAndLAndExpAST> lor_exp_op_and_land_exp)
+        : expression(std::move(lor_exp_op_and_land_exp)) {}
+
+    // void Dump() const override;
+    std::string toKoopa(std::vector<std::string>& generated_instructions);
+};
 

@@ -7,8 +7,8 @@
 
 std::string ExpAST::toKoopa(std::vector<std::string>& generated_instructions)
 {
-    if (add_exp) {
-        return add_exp->toKoopa(generated_instructions);
+    if (expression) {
+        return expression->toKoopa(generated_instructions);
     }
     return "";
 }

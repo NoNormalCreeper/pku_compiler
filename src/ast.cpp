@@ -212,8 +212,8 @@ void UnaryExpOpAndExpAST::Dump() const
 void ExpAST::Dump() const
 {
     std::cout << "ExpAST { ";
-    if (add_exp) {
-        add_exp->Dump();
+    if (expression) {
+        expression->Dump();
     } else {
         std::cout << "null";
     }
