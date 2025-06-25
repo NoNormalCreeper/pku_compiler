@@ -478,6 +478,37 @@ public:
                     stringFormat("seqz t%d, t%d", new_var, new_var));
             }
             break;
+
+        case KOOPA_RBO_LT:
+            op = "slt";
+        case KOOPA_RBO_GT:
+            if (op != "slt") {
+                op = "sgt";
+            }
+            {
+                auto [lhs_var, rhs_var] = initBinaryArgs(binary);
+                new_var = getNewTempVar();
+                getGeneratedInstructions().push_back(
+                    stringFormat("%s t%d, %s, %s", op, new_var, lhs_var, rhs_var));
+            }
+            break;
+
+        case KOOPA_RBO_LE:
+            op = "sgt";
+        case KOOPA_RBO_GE:
+            if (op != "sgt") {
+                op = "slt";
+            }
+            {
+                auto [lhs_var, rhs_var] = initBinaryArgs(binary);
+                new_var = getNewTempVar();
+                getGeneratedInstructions().push_back(
+                    stringFormat("%s t%d, %s, %s", op, new_var, lhs_var, rhs_var));
+                getGeneratedInstructions().push_back(
+                    stringFormat("seqz t%d, t%d", new_var, new_var));
+            }
+            break;
+
         default:
             assert(false); // 未处理的操作符
         }
