@@ -61,6 +61,17 @@ RightParen    "\)" */
 "+"             { yylval.char_val = yytext[0]; return ADD_OP; }
 "-"             { yylval.char_val = yytext[0]; return ADD_OP; }
 
+"<"             { yylval.str_val = new string(yytext); return REL_OP; }
+">"             { yylval.str_val = new string(yytext); return REL_OP; }
+"<="            { yylval.str_val = new string(yytext); return REL_OP; }
+">="            { yylval.str_val = new string(yytext); return REL_OP; }
+
+"=="            { yylval.str_val = new string(yytext); return EQ_OP; }
+"!="            { yylval.str_val = new string(yytext); return EQ_OP; }
+
+"&&"            { yylval.str_val = new string(yytext); return LAND_OP; }
+"||"            { yylval.str_val = new string(yytext); return LOR_OP; }
+
 "("             { return '('; }
 ")"             { return ')'; }
 "{"             { return '{'; }

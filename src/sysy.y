@@ -37,6 +37,10 @@ using namespace std;
 %token <char_val> UNARY_OP
 %token <char_val> MUL_OP
 %token <char_val> ADD_OP
+%token <str_val> REL_OP
+%token <str_val> EQ_OP
+%token <str_val> LAND_OP
+%token <str_val> LOR_OP
 %token '(' LEFT_PAREN
 %token ')' RIGHT_PAREN
 
