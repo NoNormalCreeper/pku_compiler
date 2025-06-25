@@ -478,6 +478,23 @@ public:
                     stringFormat("seqz t%d, t%d", new_var, new_var));
             }
             break;
+        
+        case KOOPA_RBO_NOT_EQ:
+            op = "ne";
+            new_var = getNewTempVar();
+
+            if (rhs == "x0") {
+                // 如果右侧是 0，使用 snez 指令
+                getGeneratedInstructions().push_back(
+                    stringFormat("snez t%d, %s", new_var, lhs));
+            } else {
+                // 一般情况下的不等比较
+                getGeneratedInstructions().push_back(
+                    stringFormat("xor t%d, %s, %s", new_var, lhs, rhs));
+                getGeneratedInstructions().push_back(
+                    stringFormat("snez t%d, t%d", new_var, new_var));
+            }
+            break;
 
         case KOOPA_RBO_LT:
             op = "slt";
