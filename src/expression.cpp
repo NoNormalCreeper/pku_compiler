@@ -105,3 +105,95 @@ std::string MulExpOpAndExpAST::toKoopa(std::vector<std::string>& generated_instr
     
     return stringFormat("%%%d", new_var);
 }
+
+std::string RelExpAST::toKoopa(std::vector<std::string>& generated_instructions)
+{
+    return std::visit([&](auto& expr) -> std::string {
+        return expr->toKoopa(generated_instructions);
+    }, expression);
+}
+
+std::string RelExpOpAndAddExpAST::toKoopa(std::vector<std::string>& generated_instructions)
+{
+    auto first_exp = first_expression->toKoopa(generated_instructions);
+    auto second_exp = latter_expression->toKoopa(generated_instructions);
+    auto new_var = BaseAST::getNewTempVar();
+    
+    switch (op) {
+        case REL_OP_LT:
+            generated_instructions.push_back(stringFormat("%%%d = lt %s, %s", new_var, first_exp, second_exp));
+            break;
+        case REL_OP_LE:
+            generated_instructions.push_back(stringFormat("%%%d = le %s, %s", new_var, first_exp, second_exp));
+            break;
+        case REL_OP_GT:
+            generated_instructions.push_back(stringFormat("%%%d = gt %s, %s", new_var, first_exp, second_exp));
+            break;
+        case REL_OP_GE:
+            generated_instructions.push_back(stringFormat("%%%d = ge %s, %s", new_var, first_exp, second_exp));
+            break;
+    }
+    
+    return stringFormat("%%%d", new_var);
+}
+
+std::string EqExpAST::toKoopa(std::vector<std::string>& generated_instructions)
+{
+    return std::visit([&](auto& expr) -> std::string {
+        return expr->toKoopa(generated_instructions);
+    }, expression);
+}
+
+std::string EqExpOpAndRelExpAST::toKoopa(std::vector<std::string>& generated_instructions)
+{
+    auto first_exp = first_expression->toKoopa(generated_instructions);
+    auto second_exp = latter_expression->toKoopa(generated_instructions);
+    auto new_var = BaseAST::getNewTempVar();
+    
+    switch (op) {
+        case EQ_OP_EQ:
+            generated_instructions.push_back(stringFormat("%%%d = eq %s, %s", new_var, first_exp, second_exp));
+            break;
+        case EQ_OP_NE:
+            generated_instructions.push_back(stringFormat("%%%d = ne %s, %s", new_var, first_exp, second_exp));
+            break;
+    }
+    
+    return stringFormat("%%%d", new_var);
+}
+
+std::string LAndExpAST::toKoopa(std::vector<std::string>& generated_instructions)
+{
+    return std::visit([&](auto& expr) -> std::string {
+        return expr->toKoopa(generated_instructions);
+    }, expression);
+}
+
+std::string LAndExpOpAndEqExpAST::toKoopa(std::vector<std::string>& generated_instructions)
+{
+    auto first_exp = first_expression->toKoopa(generated_instructions);
+    auto second_exp = latter_expression->toKoopa(generated_instructions);
+    auto new_var = BaseAST::getNewTempVar();
+    
+    generated_instructions.push_back(stringFormat("%%%d = and %s, %s", new_var, first_exp, second_exp));
+    
+    return stringFormat("%%%d", new_var);
+}
+
+std::string LOrExpAST::toKoopa(std::vector<std::string>& generated_instructions)
+{
+    return std::visit([&](auto& expr) -> std::string {
+        return expr->toKoopa(generated_instructions);
+    }, expression);
+}
+
+std::string LOrExpOpAndLAndExpAST::toKoopa(std::vector<std::string>& generated_instructions)
+{
+    auto first_exp = first_expression->toKoopa(generated_instructions);
+    auto second_exp = latter_expression->toKoopa(generated_instructions);
+    auto new_var = BaseAST::getNewTempVar();
+    
+    generated_instructions.push_back(stringFormat("%%%d = or %s, %s", new_var, first_exp, second_exp));
+    
+    return stringFormat("%%%d", new_var);
+}
