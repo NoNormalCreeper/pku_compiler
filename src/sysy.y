@@ -46,7 +46,7 @@ using namespace std;
 
 // 非终结符的类型定义
 %type <ast_val> FuncDef FuncType Block Stmt Number
-%type <ast_val> Exp UnaryExp PrimaryExp CompUnit MulExp AddExp
+%type <ast_val> Exp UnaryExp PrimaryExp CompUnit MulExp AddExp RelExp EqExp LAndExp LOrExp
 
 %%
 
@@ -107,11 +107,11 @@ Number
   }
   ;
 
-// Exp ::= AddExp
-Exp : AddExp
+// Exp ::= LOrExp
+Exp : LOrExp
   {
     auto exp = std::make_unique<ExpAST>(
-      std::unique_ptr<AddExpAST>(static_cast<AddExpAST*>($1))
+      std::unique_ptr<LOrExpAST>(static_cast<LOrExpAST*>($1))
     );
     $$ = exp.release();
   }
@@ -244,6 +244,118 @@ AddExp: MulExp
     
     auto add_exp = std::make_unique<AddExpAST>(std::move(add_exp_op_and_exp));
     $$ = add_exp.release();
+  }
+  ;
+
+// RelExp ::= AddExp | RelExp ("<" | ">" | "<=" | ">=") AddExp;
+RelExp: AddExp
+  {
+    // RelExp ::= AddExp
+    auto rel_exp = std::make_unique<RelExpAST>(
+      std::unique_ptr<AddExpAST>(static_cast<AddExpAST*>($1))
+    );
+    $$ = rel_exp.release();
+  }
+  | RelExp REL_OP AddExp
+  {
+    // RelExp ::= RelExp ("<" | ">" | "<=" | ">=") AddExp;
+    RelOp op;
+    if (*$2 == "<") {
+      op = REL_OP_LT;
+    } else if (*$2 == ">") {
+      op = REL_OP_GT;
+    } else if (*$2 == "<=") {
+      op = REL_OP_LE;
+    } else if (*$2 == ">=") {
+      op = REL_OP_GE;
+    } else {
+      op = REL_OP_LT; // 默认情况
+    }
+
+    auto rel_exp_op_and_exp = std::make_unique<RelExpOpAndAddExpAST>(
+      op,
+      std::unique_ptr<RelExpAST>(static_cast<RelExpAST*>($1)),
+      std::unique_ptr<AddExpAST>(static_cast<AddExpAST*>($3))
+    );
+    
+    auto rel_exp = std::make_unique<RelExpAST>(std::move(rel_exp_op_and_exp));
+    $$ = rel_exp.release();
+  }
+  ;
+
+// EqExp ::= RelExp | EqExp ("==" | "!=") RelExp;
+EqExp: RelExp
+  {
+    // EqExp ::= RelExp
+    auto eq_exp = std::make_unique<EqExpAST>(
+      std::unique_ptr<RelExpAST>(static_cast<RelExpAST*>($1))
+    );
+    $$ = eq_exp.release();
+  }
+  | EqExp EQ_OP RelExp
+  {
+    // EqExp ::= EqExp ("==" | "!=") RelExp;
+    EqOp op;
+    if (*$2 == "==") {
+      op = EQ_OP_EQ;
+    } else if (*$2 == "!=") {
+      op = EQ_OP_NE;
+    } else {
+      op = EQ_OP_EQ; // 默认情况
+    }
+
+    auto eq_exp_op_and_exp = std::make_unique<EqExpOpAndRelExpAST>(
+      op,
+      std::unique_ptr<EqExpAST>(static_cast<EqExpAST*>($1)),
+      std::unique_ptr<RelExpAST>(static_cast<RelExpAST*>($3))
+    );
+    
+    auto eq_exp = std::make_unique<EqExpAST>(std::move(eq_exp_op_and_exp));
+    $$ = eq_exp.release();
+  }
+  ;
+
+// LAndExp ::= EqExp | LAndExp "&&" EqExp;
+LAndExp: EqExp
+  {
+    // LAndExp ::= EqExp
+    auto land_exp = std::make_unique<LAndExpAST>(
+      std::unique_ptr<EqExpAST>(static_cast<EqExpAST*>($1))
+    );
+    $$ = land_exp.release();
+  }
+  | LAndExp LAND_OP EqExp
+  {
+    // LAndExp ::= LAndExp "&&" EqExp;
+    auto land_exp_op_and_exp = std::make_unique<LAndExpOpAndEqExpAST>(
+      std::unique_ptr<LAndExpAST>(static_cast<LAndExpAST*>($1)),
+      std::unique_ptr<EqExpAST>(static_cast<EqExpAST*>($3))
+    );
+    
+    auto land_exp = std::make_unique<LAndExpAST>(std::move(land_exp_op_and_exp));
+    $$ = land_exp.release();
+  }
+  ;
+
+// LOrExp ::= LAndExp | LOrExp "||" LAndExp;
+LOrExp: LAndExp
+  {
+    // LOrExp ::= LAndExp
+    auto lor_exp = std::make_unique<LOrExpAST>(
+      std::unique_ptr<LAndExpAST>(static_cast<LAndExpAST*>($1))
+    );
+    $$ = lor_exp.release();
+  }
+  | LOrExp LOR_OP LAndExp
+  {
+    // LOrExp ::= LOrExp "||" LAndExp;
+    auto lor_exp_op_and_exp = std::make_unique<LOrExpOpAndLAndExpAST>(
+      std::unique_ptr<LOrExpAST>(static_cast<LOrExpAST*>($1)),
+      std::unique_ptr<LAndExpAST>(static_cast<LAndExpAST*>($3))
+    );
+    
+    auto lor_exp = std::make_unique<LOrExpAST>(std::move(lor_exp_op_and_exp));
+    $$ = lor_exp.release();
   }
   ;
 
