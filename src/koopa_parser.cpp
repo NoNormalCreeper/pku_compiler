@@ -525,6 +525,21 @@ public:
                     stringFormat("seqz t%d, t%d", new_var, new_var));
             }
             break;
+        
+        case KOOPA_RBO_AND:
+            // TODO: 此处可能需要加上用 andi/ori 指令的优化
+            op = "and";
+        case KOOPA_RBO_OR:
+            if (op != "and") {
+                op = "or";
+            }
+            {
+                auto [lhs_var, rhs_var] = initBinaryArgs(binary);
+                new_var = getNewTempVar();
+                getGeneratedInstructions().push_back(
+                stringFormat("%s t%d, %s, %s", op, new_var, lhs_var, rhs_var));
+            }
+            break;
 
         default:
             assert(false); // 未处理的操作符
