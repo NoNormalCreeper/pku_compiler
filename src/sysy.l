@@ -41,7 +41,7 @@ RightParen    "\)" */
 {LineComment}   { /* 忽略, 不做任何操作 */ }
 {BlockComment}  { /* 忽略, 不做任何操作 */ }
 
-"int"           { return INT; }
+"int"           { return BTYPE; }
 "return"        { return RETURN; }
 "const"         { return CONST; }
 
@@ -79,6 +79,7 @@ RightParen    "\)" */
 "}"             { return '}'; }
 ";"             { return ';'; }
 ","             { return ','; }
+"="             { return '='; }
 
 .               { return yytext[0]; }
 
