@@ -60,14 +60,14 @@ std::string FuncTypeAST::toKoopa() const
 }
 
 // StmtAST implementations
-StmtAST::StmtAST(std::unique_ptr<ExpAST> exp)
-    : expression(std::move(exp))
-{
-}
+// ReturnExpStmtAST::ReturnExpStmtAST(std::unique_ptr<ExpAST> exp)
+//     : expression(std::move(exp))
+// {
+// }
 
-void StmtAST::Dump() const
+void ReturnExpStmtAST::Dump() const
 {
-    std::cout << "StmtAST { return ";
+    std::cout << "ReturnStmtAST { return ";
     if (expression) {
         expression->Dump();
     } else {
@@ -77,14 +77,14 @@ void StmtAST::Dump() const
 }
 
 // const版本，符合基类接口
-std::string StmtAST::toKoopa() const
+std::string ReturnExpStmtAST::toKoopa() const
 {
     // 对于const版本，我们需要调用非const版本
     // 这里使用const_cast，在这种情况下是安全的
-    return const_cast<StmtAST*>(this)->toKoopa();
+    return const_cast<ReturnExpStmtAST*>(this)->toKoopa();
 }
 
-std::string StmtAST::toKoopa() 
+std::string ReturnExpStmtAST::toKoopa() 
 {
     if (expression) {
         // 重置临时变量计数器
@@ -264,7 +264,7 @@ void BlockItemAST::Dump() const
     if (std::holds_alternative<std::unique_ptr<DeclAST>>(item)) {
         std::get<std::unique_ptr<DeclAST>>(item)->Dump();
     } else {
-        std::get<std::unique_ptr<StmtAST>>(item)->Dump();
+        std::get<std::unique_ptr<ReturnExpStmtAST>>(item)->Dump();
     }
     std::cout << " }";
 }

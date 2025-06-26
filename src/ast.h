@@ -20,6 +20,8 @@ class FuncTypeAST;
 class BlockAST;
 class BlockItemAST;
 class StmtAST;
+class LValEqExpStmtAST;
+class ReturnExpStmtAST;
 class NumberAST;
 
 class ExpAST;
@@ -45,6 +47,8 @@ class ConstDefAST;
 class ConstInitValAST;
 class ConstExpAST;
 class LValAST;
+class VarDeclAST;
+class VarDefAST;
 
 
 enum UnaryOp : std::uint8_t {
@@ -139,8 +143,29 @@ private:
     };
 };
 
-// Stmt
 class StmtAST : public BaseAST {
+public:
+    std::variant<std::unique_ptr<LValEqExpStmtAST>, std::unique_ptr<ReturnExpStmtAST>> statement;
+
+    StmtAST(std::unique_ptr<LValEqExpStmtAST> lval_eq_exp_stmt)
+        : statement(std::move(lval_eq_exp_stmt)) {}
+    StmtAST(std::unique_ptr<ReturnExpStmtAST> return_exp_stmt)
+        : statement(std::move(return_exp_stmt)) {}
+    void Dump() const override;
+    std::string toKoopa() const override;
+};
+
+class LValEqExpStmtAST : public BaseAST {
+public:
+    std::unique_ptr<LValAST> lval; // 左值
+    std::unique_ptr<ExpAST> expression; // 右值表达式
+
+    LValEqExpStmtAST(std::unique_ptr<LValAST> lval, std::unique_ptr<ExpAST> exp)
+        : lval(std::move(lval)), expression(std::move(exp)) {}
+};
+
+// Stmt
+class ReturnExpStmtAST : public BaseAST {
 public:
     // Stmt -> "return" Exp ";"
     // std::unique_ptr<NumberAST> number;
@@ -148,7 +173,7 @@ public:
 
     std::vector<std::string> generated_instructions; // 存储中间过程用于计算的 IR 指令
 
-    StmtAST(std::unique_ptr<ExpAST> exp);
+    ReturnExpStmtAST(std::unique_ptr<ExpAST> exp);
 
     void Dump() const override;
     std::string toKoopa() const override;
@@ -174,11 +199,11 @@ public:
 class BlockItemAST : public BaseAST {
 public:
     // BlockItem 可以是声明或语句
-    std::variant<std::unique_ptr<DeclAST>, std::unique_ptr<StmtAST>> item;
+    std::variant<std::unique_ptr<DeclAST>, std::unique_ptr<ReturnExpStmtAST>> item;
 
     explicit BlockItemAST(std::unique_ptr<DeclAST> decl)
         : item(std::move(decl)) {}
-    explicit BlockItemAST(std::unique_ptr<StmtAST> stmt)
+    explicit BlockItemAST(std::unique_ptr<ReturnExpStmtAST> stmt)
         : item(std::move(stmt)) {}
 
     void Dump() const override;
@@ -515,4 +540,32 @@ public:
     std::optional<int> evaluateConstant(SymbolTable& symbol_table) const override;
 };
 
+class VarDefAST : public BaseAST {
+public:
+    std::string ident; // 标识符
+    std::optional<std::unique_ptr<ConstInitValAST>> const_init_val; // 可选的常量初始化值
+
+    VarDefAST(const std::string& identifier, std::unique_ptr<ConstInitValAST> init_val)
+        : ident(identifier), const_init_val(std::move(init_val)) {}
+    VarDefAST(const std::string& identifier)
+        : ident(identifier), const_init_val(std::nullopt) {}
+};
+
+class VarDeclAST : public BaseAST {
+public:
+    BType btype; // 基本类型
+    std::vector<std::unique_ptr<VarDefAST>> var_defs; // 变量定义列表
+
+    VarDeclAST(BType type, std::vector<std::unique_ptr<VarDefAST>> defs)
+        : btype(type), var_defs(std::move(defs)) {}
+    explicit VarDeclAST(BType type)
+        : btype(type) {}
+    VarDeclAST(BType type, std::unique_ptr<VarDefAST> def)
+        : btype(type) {
+        var_defs.push_back(std::move(def));
+    }
+    void pushVarDef(std::unique_ptr<VarDefAST> def) {
+        var_defs.push_back(std::move(def));
+    }
+};
 
