@@ -6,6 +6,7 @@
 
 #include "ast.h"
 #include "koopa_parser.h"
+#include "symbol_table.h"
 
 using namespace std;
 
@@ -25,6 +26,10 @@ int main(int argc, const char* argv[])
     auto mode = argv[1];
     auto input = argv[2];
     auto output = argv[4];
+
+    // 初始化全局符号表
+    SymbolTable global_symbol_table;
+    BaseAST::global_symbol_table = &global_symbol_table;
 
     // 打开输入文件, 并且指定 lexer 在解析的时候读取这个文件
     yyin = fopen(input, "r");
