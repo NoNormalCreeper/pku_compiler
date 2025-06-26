@@ -167,6 +167,8 @@ public:
         : item(std::move(decl)) {}
     BlockItemAST(std::unique_ptr<StmtAST> stmt)
         : item(std::move(stmt)) {}
+
+    void Dump() const override;
 };
 
 // FuncDef 也是 BaseAST
@@ -257,7 +259,7 @@ public:
     MulExpOpAndExpAST(MulOp operation, std::unique_ptr<MulExpAST> first_exp, std::unique_ptr<UnaryExpAST> latter_exp)
         : op(operation), first_expression(std::move(first_exp)), latter_expression(std::move(latter_exp)) {}
 
-    // void Dump() const override;
+    void Dump() const override;
     std::string toKoopa(std::vector<std::string>& generated_instructions);
 };
 
@@ -270,7 +272,7 @@ public:
     MulExpAST(std::unique_ptr<MulExpOpAndExpAST> mul_exp_op_and_exp)
         : expression(std::move(mul_exp_op_and_exp)) {}
 
-    // void Dump() const override;
+    void Dump() const override;
     std::string toKoopa(std::vector<std::string>& generated_instructions);
 };
 
@@ -283,7 +285,7 @@ public:
     AddExpOpAndMulExpAST(AddOp operation, std::unique_ptr<AddExpAST> first_exp, std::unique_ptr<MulExpAST> latter_exp)
         : op(operation), first_expression(std::move(first_exp)), latter_expression(std::move(latter_exp)) {}
 
-    // void Dump() const override;
+    void Dump() const override;
     std::string toKoopa(std::vector<std::string>& generated_instructions);
 };
 
@@ -296,7 +298,7 @@ public:
     AddExpAST(std::unique_ptr<AddExpOpAndMulExpAST> add_exp_op_and_mul_exp)
         : expression(std::move(add_exp_op_and_mul_exp)) {}
     
-    // void Dump() const override;
+    void Dump() const override;
     std::string toKoopa(std::vector<std::string>& generated_instructions);
 };
 
@@ -309,7 +311,7 @@ public:
     RelExpOpAndAddExpAST(RelOp operation, std::unique_ptr<RelExpAST> first_exp, std::unique_ptr<AddExpAST> latter_exp)
         : op(operation), first_expression(std::move(first_exp)), latter_expression(std::move(latter_exp)) {}
 
-    // void Dump() const override;
+    void Dump() const override;
     std::string toKoopa(std::vector<std::string>& generated_instructions);
 };
 
@@ -322,7 +324,7 @@ public:
     RelExpAST(std::unique_ptr<RelExpOpAndAddExpAST> rel_exp)
         : expression(std::move(rel_exp)) {}
     
-    // void Dump() const override;
+    void Dump() const override;
     std::string toKoopa(std::vector<std::string>& generated_instructions);
 };
 
@@ -335,7 +337,7 @@ public:
     EqExpOpAndRelExpAST(EqOp operation, std::unique_ptr<EqExpAST> first_exp, std::unique_ptr<RelExpAST> latter_exp)
         : op(operation), first_expression(std::move(first_exp)), latter_expression(std::move(latter_exp)) {}
     
-    // void Dump() const override;
+    void Dump() const override;
     std::string toKoopa(std::vector<std::string>& generated_instructions);
 };
 
@@ -348,7 +350,7 @@ public:
     EqExpAST(std::unique_ptr<EqExpOpAndRelExpAST> eq_exp_op_and_rel_exp)
         : expression(std::move(eq_exp_op_and_rel_exp)) {}
     
-    // void Dump() const override;
+    void Dump() const override;
     std::string toKoopa(std::vector<std::string>& generated_instructions);
 };
 
@@ -360,7 +362,7 @@ public:
     LAndExpOpAndEqExpAST(std::unique_ptr<LAndExpAST> first_exp, std::unique_ptr<EqExpAST> latter_exp)
         : first_expression(std::move(first_exp)), latter_expression(std::move(latter_exp)) {}
     
-    // void Dump() const override;
+    void Dump() const override;
     std::string toKoopa(std::vector<std::string>& generated_instructions);
 };
 
@@ -373,7 +375,7 @@ public:
     LAndExpAST(std::unique_ptr<LAndExpOpAndEqExpAST> land_exp_op_and_eq_exp)
         : expression(std::move(land_exp_op_and_eq_exp)) {}
 
-    // void Dump() const override;
+    void Dump() const override;
     std::string toKoopa(std::vector<std::string>& generated_instructions);
 };
 
@@ -385,7 +387,7 @@ public:
     LOrExpOpAndLAndExpAST(std::unique_ptr<LOrExpAST> first_exp, std::unique_ptr<LAndExpAST> latter_exp)
         : first_expression(std::move(first_exp)), latter_expression(std::move(latter_exp)) {}
     
-    // void Dump() const override;
+    void Dump() const override;
     std::string toKoopa(std::vector<std::string>& generated_instructions);
 };
 
@@ -398,7 +400,7 @@ public:
     LOrExpAST(std::unique_ptr<LOrExpOpAndLAndExpAST> lor_exp_op_and_land_exp)
         : expression(std::move(lor_exp_op_and_land_exp)) {}
 
-    // void Dump() const override;
+    void Dump() const override;
     std::string toKoopa(std::vector<std::string>& generated_instructions);
 };
 
@@ -408,6 +410,8 @@ public:
 
     DeclAST(std::unique_ptr<ConstDeclAST> decl)
         : const_decl(std::move(decl)) {}
+
+    void Dump() const override;
 };
 
 class ConstDeclAST : public BaseAST {
@@ -428,6 +432,8 @@ public:
     void pushConstDef(std::unique_ptr<ConstDefAST> def) {
         const_defs.push_back(std::move(def));
     }
+
+    void Dump() const override;
 };
 
 class ConstDefAST : public BaseAST {
@@ -437,6 +443,8 @@ public:
 
     ConstDefAST(const std::string& id, std::unique_ptr<ConstInitValAST> init_val)
         : ident(id), const_init_val(std::move(init_val)) {}
+
+    void Dump() const override;
 };
 
 class ConstInitValAST : public BaseAST {
@@ -445,6 +453,8 @@ public:
 
     ConstInitValAST(std::unique_ptr<ConstExpAST> exp)
         : const_exp(std::move(exp)) {}
+
+    void Dump() const override;
 };
 
 class ConstExpAST : public BaseAST {
@@ -453,6 +463,8 @@ public:
 
     ConstExpAST(std::unique_ptr<ExpAST> exp)
         : expression(std::move(exp)) {}
+
+    void Dump() const override;
 };
 
 class LValAST : public BaseAST {
@@ -461,6 +473,8 @@ public:
 
     LValAST(const std::string& id)
         : ident(id) {}
+
+    void Dump() const override;
 };
 
 
