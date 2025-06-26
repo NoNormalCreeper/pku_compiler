@@ -4,11 +4,13 @@
 #include <iostream>
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <variant>
 #include <vector>
 
 #include "string_format.h"
+#include "symbol_table.h"
 
 // Forward declarations for all AST node classes
 class BaseAST;
@@ -89,6 +91,12 @@ public:
     virtual void Dump() const;
     virtual std::string toKoopa() const;
 
+    // 添加常量求值方法 - 如果表达式是常量则返回其值，否则返回nullopt
+    virtual std::optional<int> evaluateConstant(SymbolTable& symbol_table) const;
+
+    // 全局符号表引用（在main中初始化）
+    static SymbolTable* global_symbol_table;
+
     static int getNewTempVar() {
         static int temp_var_count = 0;
         return temp_var_count++;
@@ -106,10 +114,11 @@ class NumberAST : public BaseAST {
 public:
     int value;
 
-    NumberAST(int val);
+    explicit NumberAST(int val);
 
     void Dump() const override;
     std::string toKoopa() const override;
+    std::optional<int> evaluateConstant(SymbolTable& symbol_table) const override;
 };
 
 // FuncType
@@ -151,11 +160,15 @@ class BlockAST : public BaseAST {
 public:
     std::vector<std::unique_ptr<BlockItemAST>> block_items; // BlockItem 列表
 
-    BlockAST(std::vector<std::unique_ptr<BlockItemAST>> items)
+    explicit BlockAST(std::vector<std::unique_ptr<BlockItemAST>> items)
         : block_items(std::move(items)) {}
+    BlockAST() = default;
 
     void Dump() const override;
     std::string toKoopa() const override;
+    
+    // 处理块中的声明，维护符号表
+    std::string toKoopa(SymbolTable& symbol_table) const;
 };
 
 class BlockItemAST : public BaseAST {
@@ -163,12 +176,15 @@ public:
     // BlockItem 可以是声明或语句
     std::variant<std::unique_ptr<DeclAST>, std::unique_ptr<StmtAST>> item;
 
-    BlockItemAST(std::unique_ptr<DeclAST> decl)
+    explicit BlockItemAST(std::unique_ptr<DeclAST> decl)
         : item(std::move(decl)) {}
-    BlockItemAST(std::unique_ptr<StmtAST> stmt)
+    explicit BlockItemAST(std::unique_ptr<StmtAST> stmt)
         : item(std::move(stmt)) {}
 
     void Dump() const override;
+    
+    // 处理BlockItem，维护符号表并生成IR
+    std::string toKoopa(SymbolTable& symbol_table) const;
 };
 
 // FuncDef 也是 BaseAST
@@ -202,28 +218,30 @@ class PrimaryExpAST : public BaseAST {
 public:
     std::variant<std::unique_ptr<ExpAST>, NumberAST, std::unique_ptr<LValAST>> expression;
 
-    PrimaryExpAST(std::unique_ptr<ExpAST> exp)
+    explicit PrimaryExpAST(std::unique_ptr<ExpAST> exp)
         : expression(std::move(exp)) {}
-    PrimaryExpAST(NumberAST number)
+    explicit PrimaryExpAST(NumberAST number)
         : expression(std::move(number)) {}
-    PrimaryExpAST(std::unique_ptr<LValAST> lval)
+    explicit PrimaryExpAST(std::unique_ptr<LValAST> lval)
         : expression(std::move(lval)) {}
 
     void Dump() const override;
     std::string toKoopa(std::vector<std::string>& generated_instructions);
+    std::optional<int> evaluateConstant(SymbolTable& symbol_table) const override;
 };
 
 class UnaryExpAST : public BaseAST {
 public:
     std::variant<std::unique_ptr<PrimaryExpAST>, std::unique_ptr<UnaryExpOpAndExpAST>> expression;
 
-    UnaryExpAST(std::unique_ptr<PrimaryExpAST> primary_exp)
+    explicit UnaryExpAST(std::unique_ptr<PrimaryExpAST> primary_exp)
         : expression(std::move(primary_exp)) {}
-    UnaryExpAST(std::unique_ptr<UnaryExpOpAndExpAST> unary_exp_op_and_exp)
+    explicit UnaryExpAST(std::unique_ptr<UnaryExpOpAndExpAST> unary_exp_op_and_exp)
         : expression(std::move(unary_exp_op_and_exp)) {}
     
     void Dump() const override;
     std::string toKoopa(std::vector<std::string>& generated_instructions);
+    std::optional<int> evaluateConstant(SymbolTable& symbol_table) const override;
 };
 
 // UnaryOp UnaryExp
@@ -237,17 +255,19 @@ public:
     
     void Dump() const override;
     std::string toKoopa(std::vector<std::string>& generated_instructions);
+    std::optional<int> evaluateConstant(SymbolTable& symbol_table) const override;
 };
 
 class ExpAST : public BaseAST {
 public:
     std::unique_ptr<LOrExpAST> expression;
 
-    ExpAST(std::unique_ptr<LOrExpAST> add_exp)
+    explicit ExpAST(std::unique_ptr<LOrExpAST> add_exp)
         : expression(std::move(add_exp)) {}
     
     void Dump() const override;
     std::string toKoopa(std::vector<std::string>& generated_instructions);
+    std::optional<int> evaluateConstant(SymbolTable& symbol_table) const override;
 };
 
 class MulExpOpAndExpAST : public BaseAST {
@@ -261,19 +281,21 @@ public:
 
     void Dump() const override;
     std::string toKoopa(std::vector<std::string>& generated_instructions);
+    std::optional<int> evaluateConstant(SymbolTable& symbol_table) const override;
 };
 
 class MulExpAST : public BaseAST {
 public:
     std::variant<std::unique_ptr<UnaryExpAST>, std::unique_ptr<MulExpOpAndExpAST>> expression;
     
-    MulExpAST(std::unique_ptr<UnaryExpAST> unary_exp)
+    explicit MulExpAST(std::unique_ptr<UnaryExpAST> unary_exp)
         : expression(std::move(unary_exp)) {}
-    MulExpAST(std::unique_ptr<MulExpOpAndExpAST> mul_exp_op_and_exp)
+    explicit MulExpAST(std::unique_ptr<MulExpOpAndExpAST> mul_exp_op_and_exp)
         : expression(std::move(mul_exp_op_and_exp)) {}
 
     void Dump() const override;
     std::string toKoopa(std::vector<std::string>& generated_instructions);
+    std::optional<int> evaluateConstant(SymbolTable& symbol_table) const override;
 };
 
 class AddExpOpAndMulExpAST : public BaseAST {
@@ -287,19 +309,21 @@ public:
 
     void Dump() const override;
     std::string toKoopa(std::vector<std::string>& generated_instructions);
+    std::optional<int> evaluateConstant(SymbolTable& symbol_table) const override;
 };
 
 class AddExpAST : public BaseAST {
 public:
     std::variant<std::unique_ptr<MulExpAST>, std::unique_ptr<AddExpOpAndMulExpAST>> expression;
 
-    AddExpAST(std::unique_ptr<MulExpAST> mul_exp)
+    explicit AddExpAST(std::unique_ptr<MulExpAST> mul_exp)
         : expression(std::move(mul_exp)) {}
-    AddExpAST(std::unique_ptr<AddExpOpAndMulExpAST> add_exp_op_and_mul_exp)
+    explicit AddExpAST(std::unique_ptr<AddExpOpAndMulExpAST> add_exp_op_and_mul_exp)
         : expression(std::move(add_exp_op_and_mul_exp)) {}
     
     void Dump() const override;
     std::string toKoopa(std::vector<std::string>& generated_instructions);
+    std::optional<int> evaluateConstant(SymbolTable& symbol_table) const override;
 };
 
 class RelExpOpAndAddExpAST : public BaseAST {
@@ -313,19 +337,21 @@ public:
 
     void Dump() const override;
     std::string toKoopa(std::vector<std::string>& generated_instructions);
+    std::optional<int> evaluateConstant(SymbolTable& symbol_table) const override;
 };
 
 class RelExpAST : public BaseAST {
 public:
     std::variant<std::unique_ptr<AddExpAST>, std::unique_ptr<RelExpOpAndAddExpAST>> expression;
 
-    RelExpAST(std::unique_ptr<AddExpAST> add_exp)
+    explicit RelExpAST(std::unique_ptr<AddExpAST> add_exp)
         : expression(std::move(add_exp)) {}
-    RelExpAST(std::unique_ptr<RelExpOpAndAddExpAST> rel_exp)
+    explicit RelExpAST(std::unique_ptr<RelExpOpAndAddExpAST> rel_exp)
         : expression(std::move(rel_exp)) {}
     
     void Dump() const override;
     std::string toKoopa(std::vector<std::string>& generated_instructions);
+    std::optional<int> evaluateConstant(SymbolTable& symbol_table) const override;
 };
 
 class EqExpOpAndRelExpAST : public BaseAST {
@@ -339,19 +365,21 @@ public:
     
     void Dump() const override;
     std::string toKoopa(std::vector<std::string>& generated_instructions);
+    std::optional<int> evaluateConstant(SymbolTable& symbol_table) const override;
 };
 
 class EqExpAST : public BaseAST {
 public:
     std::variant<std::unique_ptr<RelExpAST>, std::unique_ptr<EqExpOpAndRelExpAST>> expression;
 
-    EqExpAST(std::unique_ptr<RelExpAST> rel_exp)
+    explicit EqExpAST(std::unique_ptr<RelExpAST> rel_exp)
         : expression(std::move(rel_exp)) {}
-    EqExpAST(std::unique_ptr<EqExpOpAndRelExpAST> eq_exp_op_and_rel_exp)
+    explicit EqExpAST(std::unique_ptr<EqExpOpAndRelExpAST> eq_exp_op_and_rel_exp)
         : expression(std::move(eq_exp_op_and_rel_exp)) {}
     
     void Dump() const override;
     std::string toKoopa(std::vector<std::string>& generated_instructions);
+    std::optional<int> evaluateConstant(SymbolTable& symbol_table) const override;
 };
 
 class LAndExpOpAndEqExpAST : public BaseAST {
@@ -364,19 +392,21 @@ public:
     
     void Dump() const override;
     std::string toKoopa(std::vector<std::string>& generated_instructions);
+    std::optional<int> evaluateConstant(SymbolTable& symbol_table) const override;
 };
 
 class LAndExpAST : public BaseAST {
 public:
     std::variant<std::unique_ptr<EqExpAST>, std::unique_ptr<LAndExpOpAndEqExpAST>> expression;
 
-    LAndExpAST(std::unique_ptr<EqExpAST> eq_exp)
+    explicit LAndExpAST(std::unique_ptr<EqExpAST> eq_exp)
         : expression(std::move(eq_exp)) {}
-    LAndExpAST(std::unique_ptr<LAndExpOpAndEqExpAST> land_exp_op_and_eq_exp)
+    explicit LAndExpAST(std::unique_ptr<LAndExpOpAndEqExpAST> land_exp_op_and_eq_exp)
         : expression(std::move(land_exp_op_and_eq_exp)) {}
 
     void Dump() const override;
     std::string toKoopa(std::vector<std::string>& generated_instructions);
+    std::optional<int> evaluateConstant(SymbolTable& symbol_table) const override;
 };
 
 class LOrExpOpAndLAndExpAST : public BaseAST {
@@ -389,19 +419,21 @@ public:
     
     void Dump() const override;
     std::string toKoopa(std::vector<std::string>& generated_instructions);
+    std::optional<int> evaluateConstant(SymbolTable& symbol_table) const override;
 };
 
 class LOrExpAST : public BaseAST {
 public:
     std::variant<std::unique_ptr<LAndExpAST>, std::unique_ptr<LOrExpOpAndLAndExpAST>> expression;
 
-    LOrExpAST(std::unique_ptr<LAndExpAST> land_exp)
+    explicit LOrExpAST(std::unique_ptr<LAndExpAST> land_exp)
         : expression(std::move(land_exp)) {}
-    LOrExpAST(std::unique_ptr<LOrExpOpAndLAndExpAST> lor_exp_op_and_land_exp)
+    explicit LOrExpAST(std::unique_ptr<LOrExpOpAndLAndExpAST> lor_exp_op_and_land_exp)
         : expression(std::move(lor_exp_op_and_land_exp)) {}
 
     void Dump() const override;
     std::string toKoopa(std::vector<std::string>& generated_instructions);
+    std::optional<int> evaluateConstant(SymbolTable& symbol_table) const override;
 };
 
 class DeclAST : public BaseAST {
@@ -421,7 +453,7 @@ public:
 
     ConstDeclAST(BType type, std::vector<std::unique_ptr<ConstDefAST>> defs)
         : btype(type), const_defs(std::move(defs)) {}
-    ConstDeclAST(BType type)
+    explicit ConstDeclAST(BType type)
         : btype(type) {}
     
     ConstDeclAST(BType type, std::unique_ptr<ConstDefAST> def)
@@ -434,6 +466,8 @@ public:
     }
 
     void Dump() const override;
+    // 处理常量声明并添加到符号表
+    void processConstDecl(SymbolTable& symbol_table) const;
 };
 
 class ConstDefAST : public BaseAST {
@@ -441,10 +475,12 @@ public:
     std::string ident; // 标识符
     std::unique_ptr<ConstInitValAST> const_init_val; // 初始化值
 
-    ConstDefAST(const std::string& id, std::unique_ptr<ConstInitValAST> init_val)
-        : ident(id), const_init_val(std::move(init_val)) {}
+    ConstDefAST(const std::string& identifier, std::unique_ptr<ConstInitValAST> init_val)
+        : ident(identifier), const_init_val(std::move(init_val)) {}
 
     void Dump() const override;
+    // 处理常量定义并添加到符号表，返回常量值
+    std::optional<int> processConstDef(SymbolTable& symbol_table) const;
 };
 
 class ConstInitValAST : public BaseAST {
@@ -461,20 +497,22 @@ class ConstExpAST : public BaseAST {
 public:
     std::unique_ptr<ExpAST> expression; // 表达式
 
-    ConstExpAST(std::unique_ptr<ExpAST> exp)
+    explicit ConstExpAST(std::unique_ptr<ExpAST> exp)
         : expression(std::move(exp)) {}
 
     void Dump() const override;
+    std::optional<int> evaluateConstant(SymbolTable& symbol_table) const override;
 };
 
 class LValAST : public BaseAST {
 public:
     std::string ident; // 标识符
 
-    LValAST(const std::string& id)
+    explicit LValAST(const std::string& id)
         : ident(id) {}
 
     void Dump() const override;
+    std::optional<int> evaluateConstant(SymbolTable& symbol_table) const override;
 };
 
 

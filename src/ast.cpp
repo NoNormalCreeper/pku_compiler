@@ -2,6 +2,9 @@
 #include "string_format.h"
 #include <cmath>
 
+// 全局符号表指针定义
+SymbolTable* BaseAST::global_symbol_table = nullptr;
+
 // BaseAST implementations
 std::string BaseAST::toKoopa() const
 {
@@ -11,6 +14,12 @@ std::string BaseAST::toKoopa() const
 void BaseAST::Dump() const
 {
     std::cout << "BaseAST { /* not implemented */ }";
+}
+
+// 默认的常量求值实现 - 大部分节点不是常量
+std::optional<int> BaseAST::evaluateConstant(SymbolTable& symbol_table) const
+{
+    return std::nullopt;
 }
 
 // NumberAST implementations
@@ -27,6 +36,11 @@ void NumberAST::Dump() const
 std::string NumberAST::toKoopa() const
 {
     return std::to_string(value);
+}
+
+std::optional<int> NumberAST::evaluateConstant(SymbolTable& /* symbol_table */) const
+{
+    return value;  // 数字字面量总是常量
 }
 
 // FuncTypeAST implementations
@@ -112,12 +126,30 @@ std::string BlockAST::toKoopa() const
     // if (stmt) {
     //     return stringFormat("%s", stmt->toKoopa());
     // }
-    std::string result;
-    for (const auto& item : block_items) {
-        result += item->toKoopa();
-        result += "\n";
-    }
+    // std::string result;
+    // for (const auto& item : block_items) {
+    //     result += item->toKoopa();
+    //     result += "\n";
+    // }
     return "";
+}
+
+// BlockAST带符号表的toKoopa实现
+std::string BlockAST::toKoopa(SymbolTable& symbol_table) const
+{
+    std::string result;
+    
+    // 为块创建新的作用域
+    symbol_table.enterScope();
+    
+    for (const auto& item : block_items) {
+        result += item->toKoopa(symbol_table);
+    }
+    
+    // 退出作用域
+    symbol_table.exitScope();
+    
+    return result;
 }
 
 // FuncDefAST implementations
@@ -141,12 +173,22 @@ std::string FuncDefAST::toKoopa() const
 {
     auto is_entry_fun = (ident == "main" && func_type->type_name == "int");
     // std::cout << "[DEBUG] func_type: " << func_type->type_name << ", ident: " << ident << " , isEntry" << isEntryFun << std::endl;
+    
+    std::string block_koopa;
+    // 使用全局符号表生成函数体
+    if (BaseAST::global_symbol_table != nullptr) {
+        block_koopa = block->toKoopa(*BaseAST::global_symbol_table);
+    } else {
+        // 如果没有全局符号表，使用原来的方式
+        block_koopa = block->toKoopa();
+    }
+    
     return stringFormat("fun @%s(%s): %s {\n%s%s}",
         ident, // 标识符
         "", // 参数列表，暂时留空
         func_type->toKoopa(), // 返回类型
         is_entry_fun ? "\%entry:\n" : "", // 如果是入口函数，添加 entry
-        block->toKoopa() // 函数体
+        block_koopa // 函数体
     );
 }
 
@@ -225,6 +267,23 @@ void BlockItemAST::Dump() const
         std::get<std::unique_ptr<StmtAST>>(item)->Dump();
     }
     std::cout << " }";
+}
+
+// BlockItemAST的toKoopa实现
+std::string BlockItemAST::toKoopa(SymbolTable& symbol_table) const
+{
+    return std::visit([&](const auto& item_ptr) -> std::string {
+        if constexpr (std::is_same_v<std::decay_t<decltype(item_ptr)>, std::unique_ptr<DeclAST>>) {
+            // 这是一个声明，需要处理常量定义并添加到符号表
+            if (item_ptr->const_decl) {
+                item_ptr->const_decl->processConstDecl(symbol_table);
+            }
+            return "";  // 常量声明不生成IR代码
+        } else {
+            // 这是一个语句，生成相应的IR代码
+            return item_ptr->toKoopa();
+        }
+    }, item);
 }
 
 // MulExpOpAndExpAST implementation
