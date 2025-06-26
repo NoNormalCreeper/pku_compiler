@@ -92,26 +92,30 @@ std::string StmtAST::toKoopa()
 }
 
 // BlockAST implementations
-BlockAST::BlockAST(std::unique_ptr<StmtAST> s)
-    : stmt(std::move(s))
-{
-}
+// BlockAST::BlockAST(std::unique_ptr<StmtAST> s)
+//     : stmt(std::move(s))
+// {
+// }
 
 void BlockAST::Dump() const
 {
     std::cout << "BlockAST { ";
-    if (stmt) {
-        stmt->Dump();
-    } else {
-        std::cout << "empty";
+    for (const auto& item : block_items) {
+        item->Dump();
+        std::cout << ", ";
     }
     std::cout << " }";
 }
 
 std::string BlockAST::toKoopa() const
 {
-    if (stmt) {
-        return stringFormat("%s", stmt->toKoopa());
+    // if (stmt) {
+    //     return stringFormat("%s", stmt->toKoopa());
+    // }
+    std::string result;
+    for (const auto& item : block_items) {
+        result += item->toKoopa();
+        result += "\n";
     }
     return "";
 }

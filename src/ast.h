@@ -149,9 +149,10 @@ public:
 // Block
 class BlockAST : public BaseAST {
 public:
-    std::unique_ptr<StmtAST> stmt;
+    std::vector<std::unique_ptr<BlockItemAST>> block_items; // BlockItem 列表
 
-    BlockAST(std::unique_ptr<StmtAST> s);
+    BlockAST(std::vector<std::unique_ptr<BlockItemAST>> items)
+        : block_items(std::move(items)) {}
 
     void Dump() const override;
     std::string toKoopa() const override;
@@ -197,12 +198,14 @@ public:
 
 class PrimaryExpAST : public BaseAST {
 public:
-    std::variant<std::unique_ptr<ExpAST>, NumberAST> expression;
+    std::variant<std::unique_ptr<ExpAST>, NumberAST, std::unique_ptr<LValAST>> expression;
 
     PrimaryExpAST(std::unique_ptr<ExpAST> exp)
         : expression(std::move(exp)) {}
     PrimaryExpAST(NumberAST number)
         : expression(std::move(number)) {}
+    PrimaryExpAST(std::unique_ptr<LValAST> lval)
+        : expression(std::move(lval)) {}
 
     void Dump() const override;
     std::string toKoopa(std::vector<std::string>& generated_instructions);
@@ -416,6 +419,15 @@ public:
         : btype(type), const_defs(std::move(defs)) {}
     ConstDeclAST(BType type)
         : btype(type) {}
+    
+    ConstDeclAST(BType type, std::unique_ptr<ConstDefAST> def)
+        : btype(type) {
+        const_defs.push_back(std::move(def));
+    }
+
+    void pushConstDef(std::unique_ptr<ConstDefAST> def) {
+        const_defs.push_back(std::move(def));
+    }
 };
 
 class ConstDefAST : public BaseAST {
