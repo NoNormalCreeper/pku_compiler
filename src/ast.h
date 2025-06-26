@@ -16,6 +16,7 @@ class CompUnitAST;
 class FuncDefAST;
 class FuncTypeAST;
 class BlockAST;
+class BlockItemAST;
 class StmtAST;
 class NumberAST;
 
@@ -35,6 +36,14 @@ class LAndExpAST;
 class LAndExpOpAndEqExpAST;
 class LOrExpAST;
 class LOrExpOpAndLAndExpAST;
+
+class DeclAST;
+class ConstDeclAST;
+class ConstDefAST;
+class ConstInitValAST;
+class ConstExpAST;
+class LValAST;
+
 
 enum UnaryOp : std::uint8_t {
     UNARY_OP_POSITIVE, // +
@@ -63,6 +72,10 @@ enum RelOp : std::uint8_t {
 enum EqOp : std::uint8_t {
     EQ_OP_EQ, // ==
     EQ_OP_NE, // !=
+};
+
+enum BType : std::uint8_t {
+    BT_INT, // int
 };
 
 // LAndOp 和 LOrOp 不需要枚举，因为它们没有额外的操作符
@@ -142,6 +155,17 @@ public:
 
     void Dump() const override;
     std::string toKoopa() const override;
+};
+
+class BlockItemAST : public BaseAST {
+public:
+    // BlockItem 可以是声明或语句
+    std::variant<std::unique_ptr<DeclAST>, std::unique_ptr<StmtAST>> item;
+
+    BlockItemAST(std::unique_ptr<DeclAST> decl)
+        : item(std::move(decl)) {}
+    BlockItemAST(std::unique_ptr<StmtAST> stmt)
+        : item(std::move(stmt)) {}
 };
 
 // FuncDef 也是 BaseAST
@@ -374,4 +398,57 @@ public:
     // void Dump() const override;
     std::string toKoopa(std::vector<std::string>& generated_instructions);
 };
+
+class DeclAST : public BaseAST {
+public:
+    std::unique_ptr<ConstDeclAST> const_decl;
+
+    DeclAST(std::unique_ptr<ConstDeclAST> decl)
+        : const_decl(std::move(decl)) {}
+};
+
+class ConstDeclAST : public BaseAST {
+public:
+    BType btype; // 基本类型
+    std::vector<std::unique_ptr<ConstDefAST>> const_defs; // 常量定义列表
+
+    ConstDeclAST(BType type, std::vector<std::unique_ptr<ConstDefAST>> defs)
+        : btype(type), const_defs(std::move(defs)) {}
+    ConstDeclAST(BType type)
+        : btype(type) {}
+};
+
+class ConstDefAST : public BaseAST {
+public:
+    std::string ident; // 标识符
+    std::unique_ptr<ConstInitValAST> const_init_val; // 初始化值
+
+    ConstDefAST(const std::string& id, std::unique_ptr<ConstInitValAST> init_val)
+        : ident(id), const_init_val(std::move(init_val)) {}
+};
+
+class ConstInitValAST : public BaseAST {
+public:
+    std::unique_ptr<ConstExpAST> const_exp; // 常量表达式
+
+    ConstInitValAST(std::unique_ptr<ConstExpAST> exp)
+        : const_exp(std::move(exp)) {}
+};
+
+class ConstExpAST : public BaseAST {
+public:
+    std::unique_ptr<ExpAST> expression; // 表达式
+
+    ConstExpAST(std::unique_ptr<ExpAST> exp)
+        : expression(std::move(exp)) {}
+};
+
+class LValAST : public BaseAST {
+public:
+    std::string ident; // 标识符
+
+    LValAST(const std::string& id)
+        : ident(id) {}
+};
+
 
