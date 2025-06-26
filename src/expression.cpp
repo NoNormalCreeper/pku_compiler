@@ -17,8 +17,22 @@ std::string PrimaryExpAST::toKoopa(std::vector<std::string>& generated_instructi
 {
     if (std::holds_alternative<NumberAST>(expression)) {
         return std::get<NumberAST>(expression).toKoopa();
-    } 
-    return std::get<std::unique_ptr<ExpAST>>(expression)->toKoopa(generated_instructions);
+    } else if (std::holds_alternative<std::unique_ptr<LValAST>>(expression)) {
+        // 处理LVal，如果是常量则替换为其值
+        const auto& lval = std::get<std::unique_ptr<LValAST>>(expression);
+        if (BaseAST::global_symbol_table != nullptr) {
+            auto constant_value = lval->evaluateConstant(*BaseAST::global_symbol_table);
+            if (constant_value.has_value()) {
+                // 是常量，直接返回常量值
+                return std::to_string(constant_value.value());
+            }
+        }
+        // 不是常量，按变量处理（这里暂时返回错误，因为还没实现变量）
+        return "/* variable not supported yet */";
+    } else {
+        // 括号表达式
+        return std::get<std::unique_ptr<ExpAST>>(expression)->toKoopa(generated_instructions);
+    }
 }
 
 std::string UnaryExpAST::toKoopa(std::vector<std::string>& generated_instructions)
