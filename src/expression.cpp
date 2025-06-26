@@ -23,10 +23,9 @@ std::string PrimaryExpAST::toKoopa(std::vector<std::string>& generated_instructi
 
 std::string UnaryExpAST::toKoopa(std::vector<std::string>& generated_instructions)
 {
-    if (std::holds_alternative<std::unique_ptr<PrimaryExpAST>>(expression)) {
-        return std::get<std::unique_ptr<PrimaryExpAST>>(expression)->toKoopa(generated_instructions);
-    } 
-    return std::get<std::unique_ptr<UnaryExpOpAndExpAST>>(expression)->toKoopa(generated_instructions);
+    return std::visit([&](auto& expr) -> std::string {
+        return expr->toKoopa(generated_instructions);
+    }, expression);
 
 }
 
@@ -53,18 +52,16 @@ std::string UnaryExpOpAndExpAST::toKoopa(std::vector<std::string>& generated_ins
 
 std::string AddExpAST::toKoopa(std::vector<std::string>& generated_instructions)
 {
-    if (std::holds_alternative<std::unique_ptr<AddExpOpAndMulExpAST>>(expression)) {
-        return std::get<std::unique_ptr<AddExpOpAndMulExpAST>>(expression)->toKoopa(generated_instructions);
-    }
-    return std::get<std::unique_ptr<MulExpAST>>(expression)->toKoopa(generated_instructions);
+    return std::visit([&](auto& expr) -> std::string {
+        return expr->toKoopa(generated_instructions);
+    }, expression);
 }
 
 std::string MulExpAST::toKoopa(std::vector<std::string>& generated_instructions)
 {
-    if (std::holds_alternative<std::unique_ptr<MulExpOpAndExpAST>>(expression)) {
-        return std::get<std::unique_ptr<MulExpOpAndExpAST>>(expression)->toKoopa(generated_instructions);
-    }
-    return std::get<std::unique_ptr<UnaryExpAST>>(expression)->toKoopa(generated_instructions);
+    return std::visit([&](auto& expr) -> std::string {
+        return expr->toKoopa(generated_instructions);
+    }, expression);
 }
 
 std::string AddExpOpAndMulExpAST::toKoopa(std::vector<std::string>& generated_instructions)
