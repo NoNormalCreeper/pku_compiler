@@ -366,7 +366,7 @@ public:
         switch (binary.op) {
         case KOOPA_RBO_SUB:
             op = "sub";
-            new_var = getNewTempVar();
+            // new_var = getNewTempVar();
 
             // std::cout << "[DEBUG] Visiting binary operation: "
             //           << lhs.at(0) << " - " << rhs.at(0)
@@ -374,10 +374,13 @@ public:
 
             if (lhs == "x0") {
                 // 如果左侧是 0，则直接使用 x0
+                // 注意此处获取 new_var 是从 rhs 取，而不是 lhs 取
+                new_var = rhs.find("t") != std::string::npos ? std::stoi(rhs.substr(1)) : getNewTempVar();
                 getGeneratedInstructions().push_back(
                     stringFormat("sub t%d, x0, %s", new_var, rhs));
             } else if (rhs == "x0") {
                 // 如果右侧是 0，则直接使用左侧
+                new_var = lhs.find("t") != std::string::npos ? std::stoi(lhs.substr(1)) : getNewTempVar();
                 if (lhs.find("t") != std::string::npos) {
                     // 如果左侧是寄存器，直接移动
                     getGeneratedInstructions().push_back(
@@ -391,6 +394,7 @@ public:
                 }
             } else {
                 // 一般情况下的减法
+                new_var = lhs.find("t") != std::string::npos ? std::stoi(lhs.substr(1)) : getNewTempVar();
                 getGeneratedInstructions().push_back(
                     stringFormat("sub t%d, %s, %s", new_var, lhs, rhs)
                 );
@@ -410,7 +414,8 @@ public:
             }
 
             // 一般情况下的加法
-            new_var = getNewTempVar();
+            // new_var = getNewTempVar();
+            new_var = lhs.find("t") != std::string::npos ? std::stoi(lhs.substr(1)) : getNewTempVar();
             getGeneratedInstructions().push_back(
                 stringFormat("add t%d, %s, %s", new_var, lhs, rhs)
             );
@@ -432,7 +437,8 @@ public:
             // }
 
             // 一般情况下的乘法
-            new_var = getNewTempVar();
+            // new_var = getNewTempVar();
+            new_var = lhs.find("t") != std::string::npos ? std::stoi(lhs.substr(1)) : getNewTempVar();
             getGeneratedInstructions().push_back(
                 stringFormat("mul t%d, %s, %s", new_var, lhs, rhs)
             );
@@ -456,7 +462,8 @@ public:
             }
 
             // 一般情况下的除法/取模
-            new_var = getNewTempVar();
+            // new_var = getNewTempVar();
+            new_var = lhs.find("t") != std::string::npos ? std::stoi(lhs.substr(1)) : getNewTempVar();
             getGeneratedInstructions().push_back(
                 stringFormat("%s t%d, %s, %s", op, new_var, lhs, rhs));
 
@@ -464,7 +471,8 @@ public:
 
         case KOOPA_RBO_EQ:
             op = "eq";
-            new_var = getNewTempVar();
+            // new_var = getNewTempVar();
+            new_var = lhs.find("t") != std::string::npos ? std::stoi(lhs.substr(1)) : getNewTempVar();
 
             if (rhs == "x0") {
                 // 如果右侧是 0，使用 seqz 指令
@@ -481,7 +489,8 @@ public:
         
         case KOOPA_RBO_NOT_EQ:
             op = "ne";
-            new_var = getNewTempVar();
+            // new_var = getNewTempVar();
+            new_var = lhs.find("t") != std::string::npos ? std::stoi(lhs.substr(1)) : getNewTempVar();
 
             if (rhs == "x0") {
                 // 如果右侧是 0，使用 snez 指令
@@ -504,7 +513,8 @@ public:
             }
             {
                 auto [lhs_var, rhs_var] = initBinaryArgs(binary);
-                new_var = getNewTempVar();
+                // new_var = getNewTempVar();
+                new_var = lhs_var.find("t") != std::string::npos ? std::stoi(lhs_var.substr(1)) : getNewTempVar();
                 getGeneratedInstructions().push_back(
                     stringFormat("%s t%d, %s, %s", op, new_var, lhs_var, rhs_var));
             }
@@ -518,7 +528,8 @@ public:
             }
             {
                 auto [lhs_var, rhs_var] = initBinaryArgs(binary);
-                new_var = getNewTempVar();
+                // new_var = getNewTempVar();
+                new_var = lhs_var.find("t") != std::string::npos ? std::stoi(lhs_var.substr(1)) : getNewTempVar();
                 getGeneratedInstructions().push_back(
                     stringFormat("%s t%d, %s, %s", op, new_var, lhs_var, rhs_var));
                 getGeneratedInstructions().push_back(
@@ -535,7 +546,8 @@ public:
             }
             {
                 auto [lhs_var, rhs_var] = initBinaryArgs(binary);
-                new_var = getNewTempVar();
+                // new_var = getNewTempVar();
+                new_var = lhs_var.find("t") != std::string::npos ? std::stoi(lhs_var.substr(1)) : getNewTempVar();
                 getGeneratedInstructions().push_back(
                 stringFormat("%s t%d, %s, %s", op, new_var, lhs_var, rhs_var));
             }
