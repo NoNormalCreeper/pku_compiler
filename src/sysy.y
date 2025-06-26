@@ -102,7 +102,7 @@ BlockItem
   }
   ;
 
-// BlockItemList ::= BlockItem | BlockItemList ',' BlockItem
+// BlockItemList ::= BlockItem | BlockItemList BlockItem
 BlockItemList
   : BlockItem {
     // BlockItemList ::= BlockItem;
@@ -110,10 +110,10 @@ BlockItemList
     block_item_list->push_back(std::unique_ptr<BaseAST>(static_cast<BaseAST*>($1)));
     $$ = block_item_list;
   }
-  | BlockItemList ',' BlockItem {
-    // BlockItemList ::= BlockItemList ',' BlockItem;
+  | BlockItemList BlockItem {
+    // BlockItemList ::= BlockItemList BlockItem;
     auto block_item_list = $1;
-    block_item_list->push_back(std::unique_ptr<BaseAST>(static_cast<BaseAST*>($3)));
+    block_item_list->push_back(std::unique_ptr<BaseAST>(static_cast<BaseAST*>($2)));
     $$ = block_item_list;  // 返回更新后的列表
   }
   ;
