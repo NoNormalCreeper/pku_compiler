@@ -28,10 +28,11 @@ using namespace std;
   int int_val;
   char char_val;
   BaseAST* ast_val;
+  std::vector<std::unique_ptr<BaseAST>>* ast_vec_val;
 }
 
 // lexer 返回的所有 token 种类的声明
-%token INT RETURN
+%token INT BTYPE RETURN CONST
 %token <str_val> IDENT
 %token <int_val> INT_CONST
 %token <char_val> UNARY_OP
@@ -45,8 +46,10 @@ using namespace std;
 %token ')' RIGHT_PAREN
 
 // 非终结符的类型定义
-%type <ast_val> FuncDef FuncType Block Stmt Number
+%type <ast_val> FuncDef FuncType Block BlockItem Stmt Number
 %type <ast_val> Exp UnaryExp PrimaryExp CompUnit MulExp AddExp RelExp EqExp LAndExp LOrExp
+%type <ast_val> Decl ConstDecl ConstDef ConstInitVal LVal ConstExp
+%type <ast_vec_val> ConstDefList BlockItemList
 
 %%
 
@@ -75,16 +78,58 @@ FuncDef
 
 // FuncType ::= "int"
 FuncType
-  : INT {
+  : BTYPE {
     auto func_type = std::make_unique<FuncTypeAST>(string("int"));
     $$ = func_type.release();
   }
   ;
 
-// Block ::= '{' Stmt '}'
+// BlockItem ::= Decl | Stmt
+BlockItem
+  : Decl {
+    // BlockItem ::= Decl;
+    auto block_item = std::make_unique<BlockItemAST>(
+        std::unique_ptr<DeclAST>(static_cast<DeclAST*>($1))
+    );
+    $$ = block_item.release();
+  }
+  | Stmt {
+    // BlockItem ::= Stmt;
+    auto block_item = std::make_unique<BlockItemAST>( 
+        std::unique_ptr<StmtAST>(static_cast<StmtAST*>($1))
+    );
+    $$ = block_item.release();
+  }
+  ;
+
+// BlockItemList ::= BlockItem | BlockItemList ',' BlockItem
+BlockItemList
+  : BlockItem {
+    // BlockItemList ::= BlockItem;
+    auto block_item_list = new std::vector<std::unique_ptr<BaseAST>>();
+    block_item_list->push_back(std::unique_ptr<BaseAST>(static_cast<BaseAST*>($1)));
+    $$ = block_item_list;
+  }
+  | BlockItemList ',' BlockItem {
+    // BlockItemList ::= BlockItemList ',' BlockItem;
+    auto block_item_list = $1;
+    block_item_list->push_back(std::unique_ptr<BaseAST>(static_cast<BaseAST*>($3)));
+    $$ = block_item_list;  // 返回更新后的列表
+  }
+  ;
+
+// Block ::= "{" {BlockItem} "}";
 Block
-  : '{' Stmt '}' {
-    auto block = std::make_unique<BlockAST>(unique_ptr<StmtAST>(static_cast<StmtAST*>($2)));
+  : '{' BlockItemList '}' {
+    // Block ::= "{" BlockItemList "}";
+    // 需要将 BaseAST* 转换为 BlockItemAST*
+    std::vector<std::unique_ptr<BlockItemAST>> block_items;
+    auto base_list = $2;
+    for (auto& item : *base_list) {
+      block_items.push_back(std::unique_ptr<BlockItemAST>(static_cast<BlockItemAST*>(item.release())));
+    }
+    delete base_list;
+    auto block = std::make_unique<BlockAST>(std::move(block_items));
     $$ = block.release();
   }
   ;
@@ -163,6 +208,16 @@ PrimaryExp : '(' Exp ')'
       NumberAST(number_ptr->value)  // 创建 NumberAST 对象的副本
     );
     delete number_ptr;  // 清理原来的对象
+    $$ = primary_exp.release();
+  }
+  | LVal
+  {
+    // PrimaryExp ::= LVal; (LVal ::= IDENT)
+    auto lval_ptr = static_cast<LValAST*>($1);
+    auto primary_exp = std::make_unique<PrimaryExpAST>(
+      std::unique_ptr<LValAST>(new LValAST(lval_ptr->ident))  // 创建 LValAST 对象的副本
+    );
+    delete lval_ptr;  // 清理原来的对象
     $$ = primary_exp.release();
   }
   ;
@@ -358,6 +413,98 @@ LOrExp: LAndExp
     $$ = lor_exp.release();
   }
   ;
+
+// ConstInitVal ::= ConstExp;
+ConstInitVal: ConstExp
+  {
+    auto const_init_val = std::make_unique<ConstInitValAST>(
+      std::unique_ptr<ConstExpAST>(static_cast<ConstExpAST*>($1))
+    );
+    $$ = const_init_val.release();
+  }
+  ;
+
+// ConstExp ::= Exp;
+ConstExp: Exp
+  {
+    auto const_exp = std::make_unique<ConstExpAST>(
+      std::unique_ptr<ExpAST>(static_cast<ExpAST*>($1))
+    );
+    $$ = const_exp.release();
+  }
+  ;
+
+// ConstDef ::= IDENT "=" ConstInitVal;
+ConstDef: IDENT '=' ConstInitVal
+  {
+    auto const_def = std::make_unique<ConstDefAST>(
+      std::string(*$1),
+      std::unique_ptr<ConstInitValAST>(static_cast<ConstInitValAST*>($3))
+    );
+    delete $1;  // 清理 IDENT 的内存
+    $$ = const_def.release();
+  }
+  ;
+
+// ConstDefList ::= ConstDef | ConstDefList ',' ConstDef;
+ConstDefList: ConstDef
+  {
+    // ConstDefList ::= ConstDef;
+    auto const_def_list = new std::vector<std::unique_ptr<BaseAST>>();
+    const_def_list->push_back(std::unique_ptr<BaseAST>(static_cast<BaseAST*>($1)));
+    $$ = const_def_list;
+  }
+  | ConstDefList ',' ConstDef
+  {
+    // ConstDefList ::= ConstDefList ConstDef;
+    auto const_def_list = $1;
+    const_def_list->push_back(std::unique_ptr<BaseAST>(static_cast<BaseAST*>($3)));
+    $$ = const_def_list;  // 返回更新后的列表
+  }
+
+
+// ConstDecl ::= "const" BType ConstDef {"," ConstDef} ";";
+ConstDecl
+  : CONST BTYPE ConstDefList ';'
+  {
+    // ConstDecl ::= "const" BType ConstDefList ";";
+    // 需要将 BaseAST* 转换为 ConstDefAST*
+    std::vector<std::unique_ptr<ConstDefAST>> const_defs;
+    auto base_list = $3;
+    for (auto& item : *base_list) {
+      const_defs.push_back(std::unique_ptr<ConstDefAST>(static_cast<ConstDefAST*>(item.release())));
+    }
+    delete base_list;
+    auto const_decl = std::make_unique<ConstDeclAST>(
+      BT_INT,  // BType 暂时只能为 "int"
+      std::move(const_defs)  // 移动 ConstDefList
+    );
+    $$ = const_decl.release();
+  }
+  ;
+
+// Decl ::= ConstDecl;
+Decl
+  : ConstDecl
+  {
+    // Decl ::= ConstDecl;
+    auto decl = std::make_unique<DeclAST>(
+      std::unique_ptr<ConstDeclAST>(static_cast<ConstDeclAST*>($1))
+    );
+    $$ = decl.release();
+  }
+  ;
+
+// LVal ::= IDENT;
+LVal
+  : IDENT
+  {
+    auto lval = std::make_unique<LValAST>(std::string(*$1));
+    delete $1;  // 清理 IDENT 的内存
+    $$ = lval.release();
+  }
+  ;
+
 
 
 %%
