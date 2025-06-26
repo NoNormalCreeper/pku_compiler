@@ -1,6 +1,8 @@
 # pku_compiler
 个人学习 北大编译原理实践 课程的项目文件
 
+[![wakatime](https://wakatime.com/badge/user/595d4312-2ac6-4d72-a323-befb05c7c3ac/project/5abb7d3a-d43e-46e0-ac2f-eefe866f701e.svg)](https://wakatime.com/badge/user/595d4312-2ac6-4d72-a323-befb05c7c3ac/project/5abb7d3a-d43e-46e0-ac2f-eefe866f701e)
+
 # 进度
 
 ## Lv1. `main` 函数
