@@ -579,11 +579,14 @@ VarDecl
     // 需要将 BaseAST* 转换为 VarDefAST*
     std::vector<std::unique_ptr<VarDefAST>> var_defs;
     auto base_list = $2;
+    for (auto& item : *base_list) {
+      var_defs.push_back(std::unique_ptr<VarDefAST>(static_cast<VarDefAST*>(item.release())));
+    }
+    delete base_list;
     auto var_decl = std::make_unique<VarDeclAST>(
       BT_INT,  // BType 暂时只能为 "int"
       std::move(var_defs)  // 移动 VarDefList
     );
-    delete base_list;  // 清理 VarDefList 的内存
     $$ = var_decl.release();
   }
   ;
