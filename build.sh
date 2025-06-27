@@ -7,6 +7,6 @@ cd "$(dirname "$0")"
 rm -r ./build || true
 
 # 配置并构建项目
-cmake -B build && cmake --build build
+cmake -DCMAKE_BUILD_TYPE=Debug -B build && cmake --build build
 
 echo -e "\033[33mBuild complete. Executable is at: build/compiler\033[0m"
