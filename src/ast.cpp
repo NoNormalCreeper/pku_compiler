@@ -60,10 +60,10 @@ std::string FuncTypeAST::toKoopa() const
 }
 
 // StmtAST implementations
-// ReturnExpStmtAST::ReturnExpStmtAST(std::unique_ptr<ExpAST> exp)
-//     : expression(std::move(exp))
-// {
-// }
+ReturnExpStmtAST::ReturnExpStmtAST(std::unique_ptr<ExpAST> exp)
+    : expression(std::move(exp))
+{
+}
 
 void ReturnExpStmtAST::Dump() const
 {
@@ -105,6 +105,43 @@ std::string ReturnExpStmtAST::toKoopa()
     return "  ret void\n"; // 如果没有数字，返回 void
 }
 
+void StmtAST::Dump() const
+{
+    std::cout << "StmtAST { ";
+    if (std::holds_alternative<std::unique_ptr<LValEqExpStmtAST>>(statement)) {
+        std::get<std::unique_ptr<LValEqExpStmtAST>>(statement)->Dump();
+    } else if (std::holds_alternative<std::unique_ptr<ReturnExpStmtAST>>(statement)) {
+        std::get<std::unique_ptr<ReturnExpStmtAST>>(statement)->Dump();
+    } else {
+        std::cout << "null statement";
+    }
+    std::cout << " }";
+}
+
+void LValEqExpStmtAST::Dump() const
+{
+    std::cout << "LValEqExpStmtAST { ";
+    if (lval) {
+        lval->Dump();
+    } else {
+        std::cout << "null";
+    }
+    std::cout << " = ";
+    if (expression) {
+        expression->Dump();
+    } else {
+        std::cout << "null";
+    }
+    std::cout << "; }";
+}
+
+std::string StmtAST::toKoopa() const
+{
+    return std::visit([&](const auto& stmt_ptr) -> std::string {
+        return stmt_ptr->toKoopa();
+    }, statement);
+}
+
 // BlockAST implementations
 // BlockAST::BlockAST(std::unique_ptr<StmtAST> s)
 //     : stmt(std::move(s))
@@ -115,7 +152,15 @@ void BlockAST::Dump() const
 {
     std::cout << "BlockAST { ";
     for (const auto& item : block_items) {
-        item->Dump();
+        try {
+            if (item) {
+                item->Dump();
+            } else {
+                std::cout << "null";
+            }
+        } catch (const std::exception& e) {
+            std::cout << "Error dumping BlockItem: " << e.what();
+        }
         std::cout << ", ";
     }
     std::cout << " }";
@@ -231,11 +276,13 @@ void PrimaryExpAST::Dump() const
 void UnaryExpAST::Dump() const
 {
     std::cout << "UnaryExpAST { ";
-    if (std::holds_alternative<std::unique_ptr<PrimaryExpAST>>(expression)) {
-        std::get<std::unique_ptr<PrimaryExpAST>>(expression)->Dump();
-    } else {
-        std::get<std::unique_ptr<UnaryExpOpAndExpAST>>(expression)->Dump();
-    }
+    std::visit([&](const auto& expr_ptr) {
+        if (expr_ptr) {
+            expr_ptr->Dump();
+        } else {
+            std::cout << "null";
+        }
+    }, expression);
     std::cout << " }";
 }
 
@@ -262,21 +309,43 @@ void BlockItemAST::Dump() const
 {
     std::cout << "BlockItemAST { ";
     if (std::holds_alternative<std::unique_ptr<DeclAST>>(item)) {
-        std::get<std::unique_ptr<DeclAST>>(item)->Dump();
+        const auto& decl_ptr = std::get<std::unique_ptr<DeclAST>>(item);
+        if (decl_ptr) {
+            decl_ptr->Dump();
+            // 如果是声明，输出声明类型
+            if (std::holds_alternative<std::unique_ptr<ConstDeclAST>>(decl_ptr->declaration)) {
+                std::cout << " (const declaration)";
+            } else if (std::holds_alternative<std::unique_ptr<VarDeclAST>>(decl_ptr->declaration)) {
+                std::cout << " (var declaration)";
+            }
+        } else {
+            std::cout << "null declaration";
+        }
     } else {
-        std::get<std::unique_ptr<ReturnExpStmtAST>>(item)->Dump();
+        const auto& stmt_ptr = std::get<std::unique_ptr<StmtAST>>(item);
+        if (stmt_ptr) {
+            stmt_ptr->Dump();
+        } else {
+            std::cout << "null statement";
+        }
     }
     std::cout << " }";
 }
 
 // BlockItemAST的toKoopa实现
-std::string BlockItemAST::toKoopa(SymbolTable& symbol_table) const
+auto BlockItemAST::toKoopa(SymbolTable& symbol_table) const -> std::string
 {
     return std::visit([&](const auto& item_ptr) -> std::string {
         if constexpr (std::is_same_v<std::decay_t<decltype(item_ptr)>, std::unique_ptr<DeclAST>>) {
             // 这是一个声明，需要处理常量定义并添加到符号表
-            if (item_ptr->const_decl) {
-                item_ptr->const_decl->processConstDecl(symbol_table);
+            // 处理常量声明
+            if (std::holds_alternative<std::unique_ptr<ConstDeclAST>>(item_ptr->declaration)) {
+                auto& const_decl = std::get<std::unique_ptr<ConstDeclAST>>(item_ptr->declaration);
+                const_decl->processConstDecl(symbol_table);
+            } else if (std::holds_alternative<std::unique_ptr<VarDeclAST>>(item_ptr->declaration)) {
+                // 处理变量声明
+                // TODO(rikka): 待实现
+                return {"/* variable declaration not implemented */"};
             }
             return "";  // 常量声明不生成IR代码
         } else {
@@ -457,11 +526,13 @@ void LOrExpAST::Dump() const
 void DeclAST::Dump() const
 {
     std::cout << "DeclAST { ";
-    if (const_decl) {
-        const_decl->Dump();
-    } else {
-        std::cout << "null";
-    }
+    std::visit([&](const auto& decl_ptr) {
+        if (decl_ptr) {
+            decl_ptr->Dump();
+        } else {
+            std::cout << "null";
+        }
+    }, declaration);
     std::cout << " }";
 }
 

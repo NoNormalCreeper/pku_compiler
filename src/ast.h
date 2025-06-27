@@ -162,6 +162,8 @@ public:
 
     LValEqExpStmtAST(std::unique_ptr<LValAST> lval, std::unique_ptr<ExpAST> exp)
         : lval(std::move(lval)), expression(std::move(exp)) {}
+    
+    void Dump() const override;
 };
 
 // Stmt
@@ -199,11 +201,11 @@ public:
 class BlockItemAST : public BaseAST {
 public:
     // BlockItem 可以是声明或语句
-    std::variant<std::unique_ptr<DeclAST>, std::unique_ptr<ReturnExpStmtAST>> item;
+    std::variant<std::unique_ptr<DeclAST>, std::unique_ptr<StmtAST>> item;
 
     explicit BlockItemAST(std::unique_ptr<DeclAST> decl)
         : item(std::move(decl)) {}
-    explicit BlockItemAST(std::unique_ptr<ReturnExpStmtAST> stmt)
+    explicit BlockItemAST(std::unique_ptr<StmtAST> stmt)
         : item(std::move(stmt)) {}
 
     void Dump() const override;
@@ -463,10 +465,12 @@ public:
 
 class DeclAST : public BaseAST {
 public:
-    std::unique_ptr<ConstDeclAST> const_decl;
-
+    std::variant<std::unique_ptr<ConstDeclAST>, std::unique_ptr<VarDeclAST>> declaration;
+    
     DeclAST(std::unique_ptr<ConstDeclAST> decl)
-        : const_decl(std::move(decl)) {}
+        : declaration(std::move(decl)) {}
+    DeclAST(std::unique_ptr<VarDeclAST> decl)
+        : declaration(std::move(decl)) {}
 
     void Dump() const override;
 };
