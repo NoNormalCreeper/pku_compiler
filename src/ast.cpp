@@ -1,6 +1,8 @@
 #include "ast.h"
 #include "string_format.h"
+#include "symbol_table.h"
 #include <cmath>
+#include <optional>
 
 // 全局符号表指针定义
 SymbolTable* BaseAST::global_symbol_table = nullptr;
@@ -180,7 +182,7 @@ std::string BlockAST::toKoopa() const
 }
 
 // BlockAST带符号表的toKoopa实现
-std::string BlockAST::toKoopa(SymbolTable& symbol_table) const
+std::string BlockAST::toKoopa(std::vector<std::string>& generated_instructions, SymbolTable& symbol_table) const
 {
     std::string result;
     
@@ -188,7 +190,7 @@ std::string BlockAST::toKoopa(SymbolTable& symbol_table) const
     symbol_table.enterScope();
     
     for (const auto& item : block_items) {
-        result += item->toKoopa(symbol_table);
+        result += item->toKoopa(generated_instructions, symbol_table);
     }
     
     // 退出作用域
@@ -214,26 +216,35 @@ void FuncDefAST::Dump() const
     std::cout << " }";
 }
 
-std::string FuncDefAST::toKoopa() const
+std::string FuncDefAST::toKoopa(std::vector<std::string>& generated_instructions) const
 {
     auto is_entry_fun = (ident == "main" && func_type->type_name == "int");
-    // std::cout << "[DEBUG] func_type: " << func_type->type_name << ", ident: " << ident << " , isEntry" << isEntryFun << std::endl;
+    
+    // 清空指令列表以开始新的函数
+    generated_instructions.clear();
     
     std::string block_koopa;
     // 使用全局符号表生成函数体
     if (BaseAST::global_symbol_table != nullptr) {
-        block_koopa = block->toKoopa(*BaseAST::global_symbol_table);
+        block_koopa = block->toKoopa(generated_instructions, *BaseAST::global_symbol_table);
     } else {
         // 如果没有全局符号表，使用原来的方式
         block_koopa = block->toKoopa();
     }
     
-    return stringFormat("fun @%s(%s): %s {\n%s%s}",
+    // 将生成的指令添加到结果中
+    std::string instructions_str;
+    for (const auto& instr : generated_instructions) {
+        instructions_str += instr + "\n";
+    }
+    
+    return stringFormat("fun @%s(%s): %s {\n%s%s%s}",
         ident, // 标识符
         "", // 参数列表，暂时留空
         func_type->toKoopa(), // 返回类型
         is_entry_fun ? "\%entry:\n" : "", // 如果是入口函数，添加 entry
-        block_koopa // 函数体
+        instructions_str, // 变量声明等指令
+        block_koopa // 函数体其他内容
     );
 }
 
@@ -252,8 +263,14 @@ void CompUnitAST::Dump() const
 
 std::string CompUnitAST::toKoopa() const
 {
+    std::vector<std::string> generated_instructions;
+    return toKoopa(generated_instructions);
+}
+
+std::string CompUnitAST::toKoopa(std::vector<std::string>& generated_instructions) const
+{
     if (func_def) {
-        return func_def->toKoopa();
+        return func_def->toKoopa(generated_instructions);
     }
     return "";
 }
@@ -333,7 +350,7 @@ void BlockItemAST::Dump() const
 }
 
 // BlockItemAST的toKoopa实现
-auto BlockItemAST::toKoopa(SymbolTable& symbol_table) const -> std::string
+auto BlockItemAST::toKoopa(std::vector<std::string>& generated_instructions, SymbolTable& symbol_table) const -> std::string
 {
     return std::visit([&](const auto& item_ptr) -> std::string {
         if constexpr (std::is_same_v<std::decay_t<decltype(item_ptr)>, std::unique_ptr<DeclAST>>) {
@@ -345,7 +362,8 @@ auto BlockItemAST::toKoopa(SymbolTable& symbol_table) const -> std::string
             } else if (std::holds_alternative<std::unique_ptr<VarDeclAST>>(item_ptr->declaration)) {
                 // 处理变量声明
                 // TODO(rikka): 待实现
-                return {"/* variable declaration not implemented */"};
+                auto& var_decl = std::get<std::unique_ptr<VarDeclAST>>(item_ptr->declaration);
+                return var_decl->toKoopa(generated_instructions, symbol_table);
             }
             return "";  // 常量声明不生成IR代码
         } else {
@@ -636,4 +654,48 @@ void VarDefAST::Dump() const
         const_init_val.value()->Dump();
     }
     std::cout << " }";
+}
+
+std::string VarDeclAST::toKoopa(std::vector<std::string>& generated_instructions, SymbolTable& symbol_table) const
+{
+    const auto& type_name = btype == BT_INT ? "i32" : "/* unknown */";
+    
+    // 遍历，alloc
+    for (const auto& var_def : var_defs) {
+        std::string var_name = var_def->ident;
+        std::optional<int> init_val = var_def->const_init_val.has_value() 
+            ? var_def->const_init_val.value()->const_exp->evaluateConstant(symbol_table) 
+            : std::nullopt;
+
+        // 判断、存入符号表
+        const auto& new_symbol = SymbolTableItem(
+            SymbolType::VAR, type_name, var_name, init_val
+        );
+        if (!symbol_table.addSymbol(new_symbol)) {
+            throw std::runtime_error(stringFormat("Variable '%s' already defined", var_name.c_str()));
+        }
+        
+        generated_instructions.push_back(stringFormat("  @%s = alloc %s", var_name.c_str(), type_name));
+        if (init_val.has_value()) {
+            // 常量初始化值
+            generated_instructions.push_back(stringFormat("  store %d, @%s", init_val.value(), var_name.c_str()));
+        }
+    }
+
+    return "";
+}
+
+std::string DeclAST::toKoopa(std::vector<std::string>& generated_instructions, SymbolTable& symbol_table) const
+{
+    return std::visit([&](const auto& decl_ptr) -> std::string {
+        if constexpr (std::is_same_v<std::decay_t<decltype(decl_ptr)>, std::unique_ptr<ConstDeclAST>>) {
+            // 处理常量声明
+            decl_ptr->processConstDecl(symbol_table);
+            return "";  // 常量声明不生成IR代码
+        } else if constexpr (std::is_same_v<std::decay_t<decltype(decl_ptr)>, std::unique_ptr<VarDeclAST>>) {
+            // 处理变量声明
+            return decl_ptr->toKoopa(generated_instructions, symbol_table);
+        }
+        return "";  // 默认返回空字符串
+    }, declaration);
 }

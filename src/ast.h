@@ -195,7 +195,7 @@ public:
     std::string toKoopa() const override;
     
     // 处理块中的声明，维护符号表
-    std::string toKoopa(SymbolTable& symbol_table) const;
+    std::string toKoopa(std::vector<std::string>& generated_instructions, SymbolTable& symbol_table) const;
 };
 
 class BlockItemAST : public BaseAST {
@@ -211,7 +211,7 @@ public:
     void Dump() const override;
     
     // 处理BlockItem，维护符号表并生成IR
-    std::string toKoopa(SymbolTable& symbol_table) const;
+    std::string toKoopa(std::vector<std::string>& generated_instructions, SymbolTable& symbol_table) const;
 };
 
 // FuncDef 也是 BaseAST
@@ -224,7 +224,8 @@ public:
     FuncDefAST(std::unique_ptr<FuncTypeAST> type, const std::string& id, std::unique_ptr<BlockAST> blk);
 
     void Dump() const override;
-    std::string toKoopa() const override;
+    // std::string toKoopa() const override;
+    std::string toKoopa(std::vector<std::string>& generated_instructions) const;
 };
 
 // CompUnit 是 BaseAST
@@ -237,6 +238,7 @@ public:
 
     void Dump() const override;
     std::string toKoopa() const override;
+    std::string toKoopa(std::vector<std::string>& generated_instructions) const;
 };
 
 /// 一元表达式
@@ -473,6 +475,7 @@ public:
         : declaration(std::move(decl)) {}
 
     void Dump() const override;
+    std::string toKoopa(std::vector<std::string>& generated_instructions, SymbolTable& symbol_table) const;
 };
 
 class ConstDeclAST : public BaseAST {
@@ -555,6 +558,7 @@ public:
         : ident(identifier), const_init_val(std::nullopt) {}
     
     void Dump() const override;
+    std::string toKoopa(std::vector<std::string>& generated_instructions, SymbolTable& symbol_table) const;
 };
 
 class VarDeclAST : public BaseAST {
@@ -575,5 +579,6 @@ public:
     }
 
     void Dump() const override;
+    std::string toKoopa(std::vector<std::string>& generated_instructions, SymbolTable& symbol_table) const;
 };
 
