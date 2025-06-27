@@ -5,6 +5,7 @@ project(compiler)
 # set to OFF to enable C mode
 set(CPP_MODE ON)
 if(CPP_MODE)
+  set(CMAKE_CXX_FLAGS "-g")
   set(FB_EXT ".cpp")
 else()
   set(FB_EXT ".c")
