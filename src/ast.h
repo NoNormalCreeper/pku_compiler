@@ -553,6 +553,8 @@ public:
         : ident(identifier), const_init_val(std::move(init_val)) {}
     VarDefAST(const std::string& identifier)
         : ident(identifier), const_init_val(std::nullopt) {}
+    
+    void Dump() const override;
 };
 
 class VarDeclAST : public BaseAST {
@@ -571,5 +573,7 @@ public:
     void pushVarDef(std::unique_ptr<VarDefAST> def) {
         var_defs.push_back(std::move(def));
     }
+
+    void Dump() const override;
 };
 

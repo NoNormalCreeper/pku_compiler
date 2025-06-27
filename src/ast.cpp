@@ -608,3 +608,32 @@ void ExpAST::Dump() const
     }
     std::cout << " }";
 }
+
+void VarDeclAST::Dump() const
+{
+    const auto btype_display_name = [](const BType& type_param) {
+        switch (type_param) {
+            case BT_INT: return "int";
+        }
+        return "int"; // default
+    };
+    
+    std::cout << "VarDeclAST { " << btype_display_name(btype) << " ";
+    for (size_t i = 0; i < var_defs.size(); ++i) {
+        var_defs[i]->Dump();
+        if (i < var_defs.size() - 1) {
+            std::cout << ", ";
+        }
+    }
+    std::cout << " }";
+}
+
+void VarDefAST::Dump() const
+{
+    std::cout << "VarDefAST { " << ident;
+    if (const_init_val.has_value()) {
+        std::cout << " = ";
+        const_init_val.value()->Dump();
+    }
+    std::cout << " }";
+}
