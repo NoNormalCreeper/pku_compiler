@@ -48,8 +48,8 @@ using namespace std;
 // 非终结符的类型定义
 %type <ast_val> FuncDef FuncType Block BlockItem Stmt Number
 %type <ast_val> Exp UnaryExp PrimaryExp CompUnit MulExp AddExp RelExp EqExp LAndExp LOrExp
-%type <ast_val> Decl ConstDecl ConstDef ConstInitVal LVal ConstExp
-%type <ast_vec_val> ConstDefList BlockItemList
+%type <ast_val> Decl ConstDecl ConstDef ConstInitVal LVal ConstExp VarDecl VarDef
+%type <ast_vec_val> ConstDefList BlockItemList VarDefList
 
 %%
 
@@ -134,11 +134,30 @@ Block
   }
   ;
 
-// Stmt ::= "return" Exp ';'
+
+/* Stmt ::= LVal "=" Exp ";"
+         | "return" Exp ";"; */
 Stmt
-  : RETURN Exp ';' {
+  : LVal '=' Exp ';'
+  {
+    // Stmt ::= LVal "=" Exp ";"
+    auto lval_eq_exp_stmt = std::make_unique<LValEqExpStmtAST>(
+      std::unique_ptr<LValAST>(static_cast<LValAST*>($1)),
+      std::unique_ptr<ExpAST>(static_cast<ExpAST*>($3))
+    );
     auto stmt = std::make_unique<StmtAST>(
-        std::unique_ptr<ExpAST>(static_cast<ExpAST*>($2))
+      std::move(lval_eq_exp_stmt)
+    );
+    $$ = stmt.release();
+  }
+  | RETURN Exp ';'
+  {
+    // Stmt ::= "return" Exp ";"
+    auto return_exp_stmt = std::make_unique<ReturnExpStmtAST>(
+      std::unique_ptr<ExpAST>(static_cast<ExpAST*>($2))
+    );
+    auto stmt = std::make_unique<StmtAST>(
+      std::move(return_exp_stmt)
     );
     $$ = stmt.release();
   }
@@ -483,13 +502,22 @@ ConstDecl
   }
   ;
 
-// Decl ::= ConstDecl;
+// Decl ::= ConstDecl | VarDecl;
+//
 Decl
   : ConstDecl
   {
     // Decl ::= ConstDecl;
     auto decl = std::make_unique<DeclAST>(
       std::unique_ptr<ConstDeclAST>(static_cast<ConstDeclAST*>($1))
+    );
+    $$ = decl.release();
+  }
+  | VarDecl
+  {
+    // Decl ::= VarDecl;
+    auto decl = std::make_unique<DeclAST>(
+      std::unique_ptr<VarDeclAST>(static_cast<VarDeclAST*>($1))
     );
     $$ = decl.release();
   }
@@ -504,6 +532,62 @@ LVal
     $$ = lval.release();
   }
   ;
+
+// VarDef ::= IDENT | IDENT "=" InitVal;
+VarDef
+  : IDENT
+  {
+    // VarDef ::= IDENT;
+    auto var_def = std::make_unique<VarDefAST>(std::string(*$1));
+    delete $1;  // 清理 IDENT 的内存
+    $$ = var_def.release();
+  }
+  | IDENT '=' ConstInitVal
+  {
+    // VarDef ::= IDENT "=" ConstInitVal;
+    auto var_def = std::make_unique<VarDefAST>(
+      std::string(*$1),
+      std::unique_ptr<ConstInitValAST>(static_cast<ConstInitValAST*>($3))
+    );
+    delete $1;  // 清理 IDENT 的内存
+    $$ = var_def.release();
+  }
+  ;
+
+VarDefList
+  : VarDef
+  {
+    // VarDefList ::= VarDef;
+    auto var_def_list = new std::vector<std::unique_ptr<BaseAST>>();
+    var_def_list->push_back(std::unique_ptr<BaseAST>(static_cast<BaseAST*>($1)));
+    $$ = var_def_list;
+  }
+  | VarDefList ',' VarDef
+  {
+    // VarDefList ::= VarDefList ',' VarDef;
+    auto var_def_list = $1;
+    var_def_list->push_back(std::unique_ptr<BaseAST>(static_cast<BaseAST*>($3)));
+    $$ = var_def_list;  // 返回更新后的列表
+  }
+  ;
+
+// VarDecl ::= BType VarDef {"," VarDef} ";";
+VarDecl
+  : BTYPE VarDefList ';'
+  {
+    // VarDecl ::= BType VarDefList ";";
+    // 需要将 BaseAST* 转换为 VarDefAST*
+    std::vector<std::unique_ptr<VarDefAST>> var_defs;
+    auto base_list = $2;
+    auto var_decl = std::make_unique<VarDeclAST>(
+      BT_INT,  // BType 暂时只能为 "int"
+      std::move(var_defs)  // 移动 VarDefList
+    );
+    delete base_list;  // 清理 VarDefList 的内存
+    $$ = var_decl.release();
+  }
+  ;
+
 
 
 
