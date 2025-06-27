@@ -707,22 +707,31 @@ std::string VarDeclAST::toKoopa(std::vector<std::string>& generated_instructions
     // 遍历，alloc
     for (const auto& var_def : var_defs) {
         std::string var_name = var_def->ident;
-        std::optional<int> init_val = var_def->const_init_val.has_value() 
-            ? var_def->const_init_val.value()->const_exp->evaluateConstant(symbol_table) 
-            : std::nullopt;
-
-        // 判断、存入符号表
+        
+        // 判断、存入符号表 (先添加变量到符号表，不管是否有初始化值)
         const auto& new_symbol = SymbolTableItem(
-            SymbolType::VAR, type_name, var_name, init_val
+            SymbolType::VAR, type_name, var_name, std::nullopt
         );
         if (!symbol_table.addSymbol(new_symbol)) {
             throw std::runtime_error(stringFormat("Variable '%s' already defined", var_name.c_str()));
         }
         
+        // 生成 alloc 指令
         generated_instructions.push_back(stringFormat("  @%s = alloc %s", var_name.c_str(), type_name));
-        if (init_val.has_value()) {
-            // 常量初始化值
-            generated_instructions.push_back(stringFormat("  store %d, @%s", init_val.value(), var_name.c_str()));
+        
+        // 处理初始化值
+        if (var_def->const_init_val.has_value()) {
+            // 尝试常量求值
+            std::optional<int> init_val = var_def->const_init_val.value()->const_exp->evaluateConstant(symbol_table);
+            
+            if (init_val.has_value()) {
+                // 常量初始化值
+                generated_instructions.push_back(stringFormat("  store %d, @%s", init_val.value(), var_name.c_str()));
+            } else {
+                // 非常量初始化值，需要生成表达式的 IR 代码
+                auto init_exp = var_def->const_init_val.value()->const_exp->expression->toKoopa(generated_instructions);
+                generated_instructions.push_back(stringFormat("  store %s, @%s", init_exp.c_str(), var_name.c_str()));
+            }
         }
     }
 
