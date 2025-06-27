@@ -153,6 +153,7 @@ public:
         : statement(std::move(return_exp_stmt)) {}
     void Dump() const override;
     std::string toKoopa() const override;
+    std::string toKoopa(std::vector<std::string>& generated_instructions, SymbolTable& symbol_table) const;
 };
 
 class LValEqExpStmtAST : public BaseAST {
@@ -164,6 +165,7 @@ public:
         : lval(std::move(lval)), expression(std::move(exp)) {}
     
     void Dump() const override;
+    std::string toKoopa(std::vector<std::string>& generated_instructions, SymbolTable& symbol_table) const;
 };
 
 // Stmt

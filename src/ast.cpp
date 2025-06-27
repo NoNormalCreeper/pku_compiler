@@ -140,8 +140,53 @@ void LValEqExpStmtAST::Dump() const
 std::string StmtAST::toKoopa() const
 {
     return std::visit([&](const auto& stmt_ptr) -> std::string {
-        return stmt_ptr->toKoopa();
+        if constexpr (std::is_same_v<std::decay_t<decltype(stmt_ptr)>, std::unique_ptr<LValEqExpStmtAST>>) {
+            // For LValEqExpStmtAST, we need to handle it differently since it requires symbol table
+            // This is a fallback that shouldn't normally be called
+            return "/* LValEqExpStmtAST requires symbol table */";
+        } else if constexpr (std::is_same_v<std::decay_t<decltype(stmt_ptr)>, std::unique_ptr<ReturnExpStmtAST>>) {
+            return stmt_ptr->toKoopa();
+        }
+        return "/* koopa not implemented for this statement */";
     }, statement);
+}
+
+std::string StmtAST::toKoopa(std::vector<std::string>& generated_instructions, SymbolTable& symbol_table) const
+{
+    return std::visit([&](const auto& stmt_ptr) -> std::string {
+        if constexpr (std::is_same_v<std::decay_t<decltype(stmt_ptr)>, std::unique_ptr<LValEqExpStmtAST>>) {
+            return stmt_ptr->toKoopa(generated_instructions, symbol_table);
+        } else if constexpr (std::is_same_v<std::decay_t<decltype(stmt_ptr)>, std::unique_ptr<ReturnExpStmtAST>>) {
+            // ReturnExpStmtAST has its own generated_instructions member, so just call the existing method
+            return stmt_ptr->toKoopa();
+        }
+        return "/* koopa not implemented for this statement */";
+    }, statement);
+}
+
+std::string LValEqExpStmtAST::toKoopa(std::vector<std::string>& generated_instructions, SymbolTable& symbol_table) const
+{
+    if (!lval || !expression) {
+        throw std::runtime_error("LValEqExpStmtAST: lval or expression is null");
+    }
+
+    // 获取左值标识符
+    const auto& var_name = lval->ident;
+
+    // 生成右值表达式的 Koopa IR
+    auto exp = expression->toKoopa(generated_instructions);
+
+    // 检查符号表中是否存在该变量
+    const auto& symbol_item = symbol_table.getSymbol(var_name);
+    if (!symbol_item.has_value() || symbol_item->symbol_type != SymbolType::VAR) {
+        throw std::runtime_error(stringFormat("Variable '%s' not defined", var_name.c_str()));
+    }
+
+    // 生成 store 指令
+    generated_instructions.push_back(stringFormat("store %s, @%s", exp, var_name));
+
+    return ""; // 返回空字符串，因为已经将指令添加到 generated_instructions 中
+
 }
 
 // BlockAST implementations
@@ -361,14 +406,13 @@ auto BlockItemAST::toKoopa(std::vector<std::string>& generated_instructions, Sym
                 const_decl->processConstDecl(symbol_table);
             } else if (std::holds_alternative<std::unique_ptr<VarDeclAST>>(item_ptr->declaration)) {
                 // 处理变量声明
-                // TODO(rikka): 待实现
                 auto& var_decl = std::get<std::unique_ptr<VarDeclAST>>(item_ptr->declaration);
                 return var_decl->toKoopa(generated_instructions, symbol_table);
             }
             return "";  // 常量声明不生成IR代码
         } else {
             // 这是一个语句，生成相应的IR代码
-            return item_ptr->toKoopa();
+            return item_ptr->toKoopa(generated_instructions, symbol_table);
         }
     }, item);
 }
