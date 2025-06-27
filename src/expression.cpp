@@ -21,10 +21,16 @@ std::string PrimaryExpAST::toKoopa(std::vector<std::string>& generated_instructi
         // 处理LVal，如果是常量则替换为其值
         const auto& lval = std::get<std::unique_ptr<LValAST>>(expression);
         if (BaseAST::global_symbol_table != nullptr) {
-            auto constant_value = lval->evaluateConstant(*BaseAST::global_symbol_table);
-            if (constant_value.has_value()) {
+            const auto& symbol_item = BaseAST::global_symbol_table->getSymbol(lval->ident);
+            if (symbol_item.has_value() && symbol_item->is_const && symbol_item->value.has_value()) {
                 // 是常量，直接返回常量值
-                return std::to_string(constant_value.value());
+                return std::to_string(symbol_item->value.value());
+            }
+            // 是变量，需要生成load指令
+            if (symbol_item.has_value() && symbol_item->symbol_type == SymbolType::VAR) {
+                auto new_var = BaseAST::getNewTempVar();
+                generated_instructions.push_back(stringFormat("%%%d = load @%s", new_var, lval->ident));
+                return stringFormat("%%%d", new_var);
             }
         }
         // 不是常量，按变量处理（这里暂时返回错误，因为还没实现变量）
