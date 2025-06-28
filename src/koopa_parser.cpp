@@ -238,6 +238,39 @@ public:
         return result;
     }
 
+    // 工具函数，返回 x 与 alignment 对齐后的值
+    int alignTo(int x, int alignment)
+    {
+        return (x + alignment - 1) / alignment * alignment;
+    }
+
+    int getPrologueOffset(const koopa_raw_function_t& func)
+    {
+        // 计算函数 prologue 的偏移量
+        // 统计所有需要栈空间的指令数量
+        int stack_slots = 0;
+        
+        for (size_t i = 0; i < func->bbs.len; ++i) {
+            const auto *bb = reinterpret_cast<koopa_raw_basic_block_t>(func->bbs.buffer[i]);
+            for (size_t j = 0; j < bb->insts.len; ++j) {
+                const auto *inst = reinterpret_cast<koopa_raw_value_t>(bb->insts.buffer[j]);
+                const auto& kind = inst->kind;
+                
+                if (kind.tag == KOOPA_RVT_ALLOC) {
+                    // alloc指令需要栈空间
+                    stack_slots++;
+                } else if (kind.tag != KOOPA_RVT_RETURN && kind.tag != KOOPA_RVT_STORE 
+                          && inst->ty->tag != KOOPA_RTT_UNIT) {
+                    // 其他有返回值的指令也需要栈空间
+                    stack_slots++;
+                }
+            }
+        }
+        
+        total_stack_size_ = alignTo(stack_slots * 4, 16);
+        return total_stack_size_; // 对齐到 16 字节
+    }
+
     // 访问函数
     std::vector<std::string> Visit(const koopa_raw_function_t& func)
     {
@@ -258,6 +291,17 @@ public:
         }
 
         result.push_back(stringFormat("%s:", func_name));
+
+        // 计算 prologue 偏移量
+        int prologue_offset = getPrologueOffset(func);
+        if (prologue_offset > 0) {
+            if (prologue_offset <= 2047) {
+                result.push_back(stringFormat("  addi sp, sp, -%d", prologue_offset));
+            } else {
+                result.push_back(stringFormat("  li t0, -%d", prologue_offset));
+                result.push_back(stringFormat("  add sp, sp, t0"));
+            }
+        }
 
         const auto bbs = Visit(func->bbs);
 
