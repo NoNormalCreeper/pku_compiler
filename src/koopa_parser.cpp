@@ -474,13 +474,33 @@ public:
         auto rhs_reg = Visit(binary.rhs);
         assert(lhs_reg.size() == 1 && rhs_reg.size() == 1);
 
-        if (lhs_reg.at(0) == "0") {
-            lhs_reg.at(0) = "x0"; // 如果左侧是 0，使用 x0
+        std::string lhs_final = lhs_reg.at(0);
+        std::string rhs_final = rhs_reg.at(0);
+
+        // 如果操作数是栈上的值，需要先加载到寄存器
+        if (lhs_final.find("(sp)") != std::string::npos) {
+            int temp_reg = getNewTempVar();
+            getGeneratedInstructions().push_back(
+                stringFormat("lw t%d, %s", temp_reg, lhs_final));
+            lhs_final = stringFormat("t%d", temp_reg);
         }
-        if (rhs_reg.at(0) == "0") {
-            rhs_reg.at(0) = "x0"; // 如果右侧是 0，使用 x0
+
+        if (rhs_final.find("(sp)") != std::string::npos) {
+            int temp_reg = getNewTempVar();
+            getGeneratedInstructions().push_back(
+                stringFormat("lw t%d, %s", temp_reg, rhs_final));
+            rhs_final = stringFormat("t%d", temp_reg);
         }
-        return { lhs_reg.at(0), rhs_reg.at(0) };
+
+        // 处理0值
+        if (lhs_final == "0") {
+            lhs_final = "x0";
+        }
+        if (rhs_final == "0") {
+            rhs_final = "x0";
+        }
+
+        return { lhs_final, rhs_final };
     }
 
     std::vector<std::string> Visit(const koopa_raw_load_t& load)
@@ -492,7 +512,7 @@ public:
         }
         
         // 重用寄存器：优先使用 t0
-        int reg_num = 0;
+        int reg_num = getNewTempVar();
         getGeneratedInstructions().push_back(
             stringFormat("lw t%d, %s", reg_num, src_addr.at(0)));
         return { stringFormat("t%d", reg_num) };
@@ -508,18 +528,18 @@ public:
             throw std::runtime_error("Store instruction: value or destination is empty");
         }
         
+        std::string value_reg = value_result.at(0);
+        
         // 如果值在栈上，需要先加载到寄存器
-        if (value_result.at(0).find("(sp)") != std::string::npos) {
-            // 重用寄存器
-            int temp_reg = 0;
+        if (value_reg.find("(sp)") != std::string::npos) {
+            int temp_reg = getNewTempVar();
             getGeneratedInstructions().push_back(
-                stringFormat("lw t%d, %s", temp_reg, value_result.at(0)));
-            getGeneratedInstructions().push_back(
-                stringFormat("sw t%d, %s", temp_reg, dest_addr.at(0)));
-        } else {
-            getGeneratedInstructions().push_back(
-                stringFormat("sw %s, %s", value_result.at(0), dest_addr.at(0)));
+                stringFormat("lw t%d, %s", temp_reg, value_reg));
+            value_reg = stringFormat("t%d", temp_reg);
         }
+        
+        getGeneratedInstructions().push_back(
+            stringFormat("sw %s, %s", value_reg, dest_addr.at(0)));
         return {};  // store指令没有返回值
     }
 
@@ -529,35 +549,19 @@ public:
         auto [lhs, rhs] = initBinaryArgs(binary);
 
         std::string op;
-        // 重用寄存器：优先使用 t0, t1
-        int new_var = 0;
+        // 重用寄存器：优先使用 t0
+        int new_var = getNewTempVar();
         
         switch (binary.op) {
         case KOOPA_RBO_SUB:
-            op = "sub";
-            // new_var = getNewTempVar();
-
-            // std::cout << "[DEBUG] Visiting binary operation: "
-            //           << lhs.at(0) << " - " << rhs.at(0)
-            //           << " to new var " << new_var << std::endl;
-
             if (lhs == "x0") {
-                // 如果左侧是 0，则直接使用 x0
-                // 注意此处获取 new_var 是从 rhs 取，而不是 lhs 取
-                new_var = rhs.find("t") != std::string::npos ? std::stoi(rhs.substr(1)) : getNewTempVar();
+                // 0 - rhs = -rhs
                 getGeneratedInstructions().push_back(
                     stringFormat("sub t%d, x0, %s", new_var, rhs));
             } else if (rhs == "x0") {
                 // lhs - 0 = lhs
-                if (lhs.find("t") != std::string::npos) {
-                    // 如果是寄存器，直接移动
-                    getGeneratedInstructions().push_back(
-                        stringFormat("mv t%d, %s", new_var, lhs));
-                } else {
-                    // 立即数
-                    getGeneratedInstructions().push_back(
-                        stringFormat("li t%d, %s", new_var, lhs));
-                }
+                getGeneratedInstructions().push_back(
+                    stringFormat("mv t%d, %s", new_var, lhs));
             } else {
                 // 一般情况
                 getGeneratedInstructions().push_back(
@@ -566,17 +570,12 @@ public:
             break;
         
         case KOOPA_RBO_ADD:
-            op = "add";
-
             // 如果左侧或右侧是 0，直接使用另一个操作数
             if (lhs == "x0") {
-                // 如果左侧是 0，直接返回右侧
                 return { rhs };
             } else if (rhs == "x0") {
-                // 如果右侧是 0，直接返回左侧
                 return { lhs };
             }
-
             // 一般情况下的加法
             getGeneratedInstructions().push_back(
                 stringFormat("add t%d, %s, %s", new_var, lhs, rhs));
@@ -587,25 +586,14 @@ public:
             if (lhs == "x0" || rhs == "x0") {
                 return { "x0" };
             }
-            // 如果左侧或右侧为 1，直接返回另一个操作数
-            // if (lhs == "x1") {
-            //     return { rhs };
-            // } else if (rhs == "x1") {
-            //     return { lhs };
-            // }
-
             // 一般情况下的乘法
             getGeneratedInstructions().push_back(
                 stringFormat("mul t%d, %s, %s", new_var, lhs, rhs));
             break;
 
         case KOOPA_RBO_DIV:
-            op = "div";
         case KOOPA_RBO_MOD:
-            if (op != "div") {
-                op = "rem";
-            }
-
+            op = (binary.op == KOOPA_RBO_DIV) ? "div" : "rem";
             // 如果左侧是 0，直接返回 0
             if (lhs == "x0") {
                 return { "x0" };
@@ -616,14 +604,9 @@ public:
             }
             getGeneratedInstructions().push_back(
                 stringFormat("%s t%d, %s, %s", op, new_var, lhs, rhs));
-
             break;
 
         case KOOPA_RBO_EQ:
-            op = "eq";
-            // new_var = getNewTempVar();
-            new_var = lhs.find("t") != std::string::npos ? std::stoi(lhs.substr(1)) : getNewTempVar();
-
             if (rhs == "x0") {
                 // 如果右侧是 0，使用 seqz 指令
                 getGeneratedInstructions().push_back(
@@ -638,10 +621,6 @@ public:
             break;
         
         case KOOPA_RBO_NOT_EQ:
-            op = "ne";
-            // new_var = getNewTempVar();
-            new_var = lhs.find("t") != std::string::npos ? std::stoi(lhs.substr(1)) : getNewTempVar();
-
             if (rhs == "x0") {
                 // 如果右侧是 0，使用 snez 指令
                 getGeneratedInstructions().push_back(
