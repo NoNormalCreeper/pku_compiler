@@ -63,7 +63,7 @@ std::string FuncTypeAST::toKoopa() const
 }
 
 // StmtAST implementations
-ReturnExpStmtAST::ReturnExpStmtAST(std::unique_ptr<ExpAST> exp)
+ReturnExpStmtAST::ReturnExpStmtAST(std::optional<std::unique_ptr<ExpAST>> exp)
     : expression(std::move(exp))
 {
 }

@@ -135,8 +135,10 @@ Block
   ;
 
 
-/* Stmt ::= LVal "=" Exp ";"
-         | "return" Exp ";"; */
+// Stmt ::= LVal "=" Exp ";"
+//        | [Exp] ";"
+//        | Block
+//        | "return" [Exp] ";";
 Stmt
   : LVal '=' Exp ';'
   {
@@ -154,10 +156,52 @@ Stmt
   {
     // Stmt ::= "return" Exp ";"
     auto return_exp_stmt = std::make_unique<ReturnExpStmtAST>(
-      std::unique_ptr<ExpAST>(static_cast<ExpAST*>($2))
+      std::optional(std::unique_ptr<ExpAST>(static_cast<ExpAST*>($2)))
     );
     auto stmt = std::make_unique<StmtAST>(
       std::move(return_exp_stmt)
+    );
+    $$ = stmt.release();
+  }
+  | RETURN ';'
+  {
+    // Stmt ::= "return" ";"
+    auto return_exp_stmt = std::make_unique<ReturnExpStmtAST>(
+      std::nullopt  // 没有表达式
+    );
+    auto stmt = std::make_unique<StmtAST>(
+      std::move(return_exp_stmt)
+    );
+    $$ = stmt.release();
+  }
+  | Block
+  {
+    // Stmt ::= Block;
+    auto block_stmt = std::make_unique<BlockStmtAST>(
+      std::unique_ptr<BlockAST>(static_cast<BlockAST*>($1))
+    );
+    auto stmt = std::make_unique<StmtAST>(
+      std::move(block_stmt)
+    );
+    $$ = stmt.release();
+  }
+  | Exp ';'
+  {
+    // Stmt ::= Exp ";"
+    auto exp_stmt = std::make_unique<OptionalExpStmtAST>(
+      std::unique_ptr<ExpAST>(static_cast<ExpAST*>($1))
+    );
+    auto stmt = std::make_unique<StmtAST>(
+      std::move(exp_stmt)
+    );
+    $$ = stmt.release();
+  }
+  | ';'
+  {
+    // Stmt ::= ";"
+    auto empty_stmt = std::make_unique<OptionalExpStmtAST>();
+    auto stmt = std::make_unique<StmtAST>(
+      std::move(empty_stmt)
     );
     $$ = stmt.release();
   }

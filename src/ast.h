@@ -180,8 +180,9 @@ class OptionalExpStmtAST : public BaseAST {
 public:
     std::optional<std::unique_ptr<ExpAST>> expression; // 可选的表达式
 
-    explicit OptionalExpStmtAST(std::unique_ptr<ExpAST> exp)
+    OptionalExpStmtAST(std::unique_ptr<ExpAST> exp)
         : expression(std::move(exp)) {}
+    OptionalExpStmtAST(): expression(std::nullopt) {}
     
     void Dump() const override;
     std::string toKoopa(std::vector<std::string>& generated_instructions, SymbolTable& symbol_table) const;
@@ -207,7 +208,7 @@ public:
 
     std::vector<std::string> generated_instructions; // 存储中间过程用于计算的 IR 指令
 
-    ReturnExpStmtAST(std::unique_ptr<ExpAST> exp);
+    ReturnExpStmtAST(std::optional<std::unique_ptr<ExpAST>> exp);
 
     void Dump() const override;
     std::string toKoopa() const override;
