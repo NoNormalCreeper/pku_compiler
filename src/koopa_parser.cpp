@@ -113,7 +113,10 @@ private:
 public:
     int getNewTempVar()
     {
-        return temp_var_count_++;
+        // 只使用 t0, t1, t2 三个寄存器，循环重用
+        int reg_num = temp_var_count_ % 3;
+        temp_var_count_++;
+        return reg_num;
     }
 
     int clearTempVarCounter()
@@ -340,9 +343,16 @@ public:
     std::vector<std::string> Visit(const koopa_raw_value_t& value)
     {
         // 检查是否已经处理过这个值
-        auto it = value_to_register_.find(value);
-        if (it != value_to_register_.end()) {
-            return { it->second };
+        auto iter = value_to_register_.find(value);
+        if (iter != value_to_register_.end()) {
+            // 如果值在栈上，加载到寄存器
+            if (iter->second.find("(sp)") != std::string::npos) {
+                int reg_num = getNewTempVar();
+                getGeneratedInstructions().push_back(
+                    stringFormat("lw t%d, %s", reg_num, iter->second));
+                return { stringFormat("t%d", reg_num) };
+            }
+            return { iter->second };
         }
 
         // 根据指令类型判断后续需要如何访问
@@ -351,26 +361,18 @@ public:
 
         switch (kind.tag) {
         case KOOPA_RVT_RETURN:
-            // 访问 return 指令
-            // std::cout << "[DEBUG] Visiting return instruction" << std::endl;
             result = Visit(kind.data.ret);
             break;
         case KOOPA_RVT_INTEGER:
-            // 访问 integer 指令
-            // std::cout << "[DEBUG] Visiting integer instruction" << std::endl;
             result = Visit(kind.data.integer);
             break;
         case KOOPA_RVT_BINARY:
-            // 访问二元运算指
-            // std::cout << "[DEBUG] Visiting binary instruction" << std::endl;
             result = Visit(kind.data.binary);
             break;
         case KOOPA_RVT_LOAD:
-            // 访问 load 指令
             result = Visit(kind.data.load);
             break;
         case KOOPA_RVT_STORE:
-            // 访问 store 指令
             result = Visit(kind.data.store);
             break;
         case KOOPA_RVT_ALLOC:
@@ -382,26 +384,26 @@ public:
             break;
 
         default:
-            // 其他类型暂时遇不到
             assert(false);
         }
 
-        // 只为load和binary指令的结果分配栈空间并自动存储
-        if (value->ty->tag != KOOPA_RTT_UNIT && 
-            (kind.tag == KOOPA_RVT_LOAD || kind.tag == KOOPA_RVT_BINARY)) {
-            if (!result.empty()) {
+        // 对于有返回值的指令，如果被多次使用，存储到栈中
+        if (value->ty->tag != KOOPA_RTT_UNIT && kind.tag != KOOPA_RVT_RETURN && 
+            kind.tag != KOOPA_RVT_STORE && kind.tag != KOOPA_RVT_ALLOC) {
+            
+            if (!result.empty() && value->used_by.len > 1) {
+                // 被多次使用，存储到栈
                 int offset = getValueOffset(value);
                 getGeneratedInstructions().push_back(
                     stringFormat("sw %s, %d(sp)", result.at(0), offset));
-                // 更新缓存，下次访问时直接从栈加载
                 value_to_register_[value] = stringFormat("%d(sp)", offset);
                 return { stringFormat("%d(sp)", offset) };
+            } else {
+                // 只被使用一次，直接缓存寄存器
+                if (!result.empty()) {
+                    value_to_register_[value] = result[0];
+                }
             }
-        }
-
-        // 缓存结果（除了return和store指令）
-        if (!result.empty() && kind.tag != KOOPA_RVT_RETURN && kind.tag != KOOPA_RVT_STORE) {
-            value_to_register_[value] = result[0];
         }
 
         return result;
@@ -419,7 +421,6 @@ public:
 
         // 其他数字分配寄存器
         int new_var = getNewTempVar();
-        // std::cout << "[DEBUG] Visiting integer value: " << integer.value << " to new var " << new_var << std::endl;
         getGeneratedInstructions().push_back(
             stringFormat("li t%d, %d", new_var, integer.value));
         return { stringFormat("t%d", new_var) };
@@ -511,7 +512,7 @@ public:
             throw std::runtime_error("Load instruction: source address is empty");
         }
         
-        // 重用寄存器：优先使用 t0
+        // 分配新的寄存器
         int reg_num = getNewTempVar();
         getGeneratedInstructions().push_back(
             stringFormat("lw t%d, %s", reg_num, src_addr.at(0)));
@@ -548,8 +549,7 @@ public:
         // 访问二元运算指令
         auto [lhs, rhs] = initBinaryArgs(binary);
 
-        std::string op;
-        // 重用寄存器：优先使用 t0
+        // 优先重用左操作数的寄存器（如果它是临时寄存器）
         int new_var = getNewTempVar();
         
         switch (binary.op) {
@@ -559,9 +559,8 @@ public:
                 getGeneratedInstructions().push_back(
                     stringFormat("sub t%d, x0, %s", new_var, rhs));
             } else if (rhs == "x0") {
-                // lhs - 0 = lhs
-                getGeneratedInstructions().push_back(
-                    stringFormat("mv t%d, %s", new_var, lhs));
+                // lhs - 0 = lhs，可以直接返回左操作数
+                return { lhs };
             } else {
                 // 一般情况
                 getGeneratedInstructions().push_back(
@@ -586,6 +585,17 @@ public:
             if (lhs == "x0" || rhs == "x0") {
                 return { "x0" };
             }
+            // 如果右侧是 1，直接返回左侧
+            if (rhs.find("t") == std::string::npos && rhs != "x0") {
+                // 检查是否为立即数 1
+                try {
+                    if (std::stoi(rhs) == 1) {
+                        return { lhs };
+                    }
+                } catch (...) {
+                    // 不是数字，继续正常处理
+                }
+            }
             // 一般情况下的乘法
             getGeneratedInstructions().push_back(
                 stringFormat("mul t%d, %s, %s", new_var, lhs, rhs));
@@ -593,17 +603,19 @@ public:
 
         case KOOPA_RBO_DIV:
         case KOOPA_RBO_MOD:
-            op = (binary.op == KOOPA_RBO_DIV) ? "div" : "rem";
-            // 如果左侧是 0，直接返回 0
-            if (lhs == "x0") {
-                return { "x0" };
+            {
+                std::string op = (binary.op == KOOPA_RBO_DIV) ? "div" : "rem";
+                // 如果左侧是 0，直接返回 0
+                if (lhs == "x0") {
+                    return { "x0" };
+                }
+                // 如果右侧是 0，抛出异常或处理错误
+                if (rhs == "x0") {
+                    throw std::runtime_error("Division by zero error");
+                }
+                getGeneratedInstructions().push_back(
+                    stringFormat("%s t%d, %s, %s", op, new_var, lhs, rhs));
             }
-            // 如果右侧是 0，抛出异常或处理错误
-            if (rhs == "x0") {
-                throw std::runtime_error("Division by zero error");
-            }
-            getGeneratedInstructions().push_back(
-                stringFormat("%s t%d, %s, %s", op, new_var, lhs, rhs));
             break;
 
         case KOOPA_RBO_EQ:
