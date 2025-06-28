@@ -430,7 +430,6 @@ public:
         // 访问 return 指令的值
         if (ret.value) {
             auto visited = Visit(ret.value);
-            // std::cout << "[DEBUG] Visiting return value: " << visited.at(0) << std::endl;
             assert(visited.size() == 1);
 
             if (visited.at(0) == "0") {
@@ -440,10 +439,26 @@ public:
                 // 否则将返回值加载到 a0 寄存器
                 getGeneratedInstructions().push_back(
                     stringFormat("mv a0, %s", visited.at(0)));
+            } else if (visited.at(0).find("(sp)") != std::string::npos) {
+                // 如果是栈上的值，需要先加载
+                getGeneratedInstructions().push_back(
+                    stringFormat("lw a0, %s", visited.at(0)));
             } else {
                 // 如果返回值是数字
                 getGeneratedInstructions().push_back(
                     stringFormat("li a0, %s", visited.at(0)));
+            }
+            
+            // 添加函数的 epilogue
+            if (total_stack_size_ > 0) {
+                if (total_stack_size_ <= 2047) {
+                    getGeneratedInstructions().push_back(
+                        stringFormat("addi sp, sp, %d", total_stack_size_));
+                } else {
+                    getGeneratedInstructions().push_back(
+                        stringFormat("li t0, %d", total_stack_size_));
+                    getGeneratedInstructions().push_back("add sp, sp, t0");
+                }
             }
             getGeneratedInstructions().push_back("ret");
             return {}; // 返回空，因为已经添加到指令列表中
@@ -454,7 +469,7 @@ public:
 
     std::tuple<std::string, std::string> initBinaryArgs(const koopa_raw_binary_t& binary)
     {
-        // 访问二元运算指令
+        // 访问二元运算指令的操作数
         auto lhs_reg = Visit(binary.lhs);
         auto rhs_reg = Visit(binary.rhs);
         assert(lhs_reg.size() == 1 && rhs_reg.size() == 1);
