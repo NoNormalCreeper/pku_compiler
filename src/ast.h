@@ -203,7 +203,7 @@ class ReturnExpStmtAST : public BaseAST {
 public:
     // Stmt -> "return" Exp ";"
     // std::unique_ptr<NumberAST> number;
-    std::unique_ptr<ExpAST> expression;
+    std::optional<std::unique_ptr<ExpAST>> expression;
 
     std::vector<std::string> generated_instructions; // 存储中间过程用于计算的 IR 指令
 

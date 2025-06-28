@@ -71,8 +71,8 @@ ReturnExpStmtAST::ReturnExpStmtAST(std::unique_ptr<ExpAST> exp)
 void ReturnExpStmtAST::Dump() const
 {
     std::cout << "ReturnStmtAST { return ";
-    if (expression) {
-        expression->Dump();
+    if (expression.has_value()) {
+        expression->get()->Dump();
     } else {
         std::cout << "null";
     }
@@ -89,14 +89,14 @@ std::string ReturnExpStmtAST::toKoopa() const
 
 std::string ReturnExpStmtAST::toKoopa() 
 {
-    if (expression) {
+    if (expression.has_value()) {
         // 重置临时变量计数器
         BaseAST::resetTempVarCounter();
         // 清空指令列表
         generated_instructions.clear();
 
         std::string result = "";
-        auto exp = expression->toKoopa(generated_instructions);
+        auto exp = expression->get()->toKoopa(generated_instructions);
         if (!generated_instructions.empty()) {
             for (const auto& instr : generated_instructions) {
                 result += stringFormat("  %s\n", instr);
