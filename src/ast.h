@@ -19,6 +19,8 @@ class FuncDefAST;
 class FuncTypeAST;
 class BlockAST;
 class BlockItemAST;
+class OptionalExpStmtAST;
+class BlockStmtAST;
 class StmtAST;
 class LValEqExpStmtAST;
 class ReturnExpStmtAST;
@@ -145,12 +147,18 @@ private:
 
 class StmtAST : public BaseAST {
 public:
-    std::variant<std::unique_ptr<LValEqExpStmtAST>, std::unique_ptr<ReturnExpStmtAST>> statement;
+    std::variant<std::unique_ptr<LValEqExpStmtAST>, std::unique_ptr<ReturnExpStmtAST>,
+        std::unique_ptr<OptionalExpStmtAST>, std::unique_ptr<BlockStmtAST>>
+        statement;
 
     StmtAST(std::unique_ptr<LValEqExpStmtAST> lval_eq_exp_stmt)
         : statement(std::move(lval_eq_exp_stmt)) {}
     StmtAST(std::unique_ptr<ReturnExpStmtAST> return_exp_stmt)
         : statement(std::move(return_exp_stmt)) {}
+    StmtAST(std::unique_ptr<OptionalExpStmtAST> optional_exp_stmt)
+        : statement(std::move(optional_exp_stmt)) {}
+    StmtAST(std::unique_ptr<BlockStmtAST> block_stmt)
+        : statement(std::move(block_stmt)) {}
     void Dump() const override;
     std::string toKoopa() const override;
     std::string toKoopa(std::vector<std::string>& generated_instructions, SymbolTable& symbol_table) const;
@@ -163,6 +171,28 @@ public:
 
     LValEqExpStmtAST(std::unique_ptr<LValAST> lval, std::unique_ptr<ExpAST> exp)
         : lval(std::move(lval)), expression(std::move(exp)) {}
+    
+    void Dump() const override;
+    std::string toKoopa(std::vector<std::string>& generated_instructions, SymbolTable& symbol_table) const;
+};
+
+class OptionalExpStmtAST : public BaseAST {
+public:
+    std::optional<std::unique_ptr<ExpAST>> expression; // 可选的表达式
+
+    explicit OptionalExpStmtAST(std::unique_ptr<ExpAST> exp)
+        : expression(std::move(exp)) {}
+    
+    void Dump() const override;
+    std::string toKoopa(std::vector<std::string>& generated_instructions, SymbolTable& symbol_table) const;
+};
+
+class BlockStmtAST : public BaseAST {
+public:
+    std::unique_ptr<BlockAST> block; // 块内容
+
+    explicit BlockStmtAST(std::unique_ptr<BlockAST> blk)
+        : block(std::move(blk)) {}
     
     void Dump() const override;
     std::string toKoopa(std::vector<std::string>& generated_instructions, SymbolTable& symbol_table) const;

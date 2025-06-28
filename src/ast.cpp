@@ -3,6 +3,7 @@
 #include "symbol_table.h"
 #include <cmath>
 #include <optional>
+#include <vector>
 
 // 全局符号表指针定义
 SymbolTable* BaseAST::global_symbol_table = nullptr;
@@ -110,13 +111,13 @@ std::string ReturnExpStmtAST::toKoopa()
 void StmtAST::Dump() const
 {
     std::cout << "StmtAST { ";
-    if (std::holds_alternative<std::unique_ptr<LValEqExpStmtAST>>(statement)) {
-        std::get<std::unique_ptr<LValEqExpStmtAST>>(statement)->Dump();
-    } else if (std::holds_alternative<std::unique_ptr<ReturnExpStmtAST>>(statement)) {
-        std::get<std::unique_ptr<ReturnExpStmtAST>>(statement)->Dump();
-    } else {
-        std::cout << "null statement";
-    }
+    std::visit([&](const auto& stmt_ptr) {
+        if (stmt_ptr) {
+            stmt_ptr->Dump();
+        } else {
+            std::cout << "null";
+        }
+    }, statement);
     std::cout << " }";
 }
 
@@ -751,4 +752,32 @@ std::string DeclAST::toKoopa(std::vector<std::string>& generated_instructions, S
         }
         return "";  // 默认返回空字符串
     }, declaration);
+}
+
+void OptionalExpStmtAST::Dump() const
+{
+    std::cout << "OptionalExpStmtAST { ";
+    if (expression.has_value()) {
+        expression->get()->Dump();
+    } else {
+        std::cout << "nullopt";
+    }
+    std::cout << "; }";
+}
+
+std::string OptionalExpStmtAST::toKoopa(std::vector<std::string>& generated_instructions, SymbolTable& symbol_table) const
+{
+    return "/* ... */";
+}
+
+void BlockStmtAST::Dump() const
+{
+    std::cout << "BlockStmtAST { ";
+    block->Dump();
+    std::cout << " }";
+}
+
+std::string BlockStmtAST::toKoopa(std::vector<std::string>& generated_instructions, SymbolTable& symbol_table) const
+{
+    return block->toKoopa(generated_instructions, symbol_table);
 }
