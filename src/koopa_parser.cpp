@@ -105,6 +105,10 @@ private:
     int temp_var_count_ = 0;
     std::vector<std::string> generated_instructions_;
     std::unordered_map<const void*, std::string> value_to_register_; // 值到寄存器的映射
+    std::unordered_map<const void*, int> value_to_offset_; // 值到栈偏移的映射
+    std::unordered_map<std::string, int> var_to_offset_; // 变量名到函数栈内偏移量的映射
+    int current_stack_offset_ = 0; // 当前栈偏移
+    int total_stack_size_ = 0; // 总栈空间大小
 
 public:
     int getNewTempVar()
@@ -117,12 +121,48 @@ public:
         int old_count = temp_var_count_;
         temp_var_count_ = 0;
         value_to_register_.clear();
+        value_to_offset_.clear();
+        var_to_offset_.clear(); // 清空变量映射
+        current_stack_offset_ = 0;
+        total_stack_size_ = 0;
         return old_count;
     }
 
     auto& getGeneratedInstructions()
     {
         return generated_instructions_;
+    }
+
+    void addVarToOffset(const std::string& var_name, int offset)
+    {
+        var_to_offset_[var_name] = offset;
+    }
+
+    int getVarOffset(const std::string& var_name) {
+        // 如果变量名在映射中，直接返回
+        auto it = var_to_offset_.find(var_name);
+        if (it != var_to_offset_.end()) {
+            return it->second;
+        }
+
+        // 否则新增一条记录，每个变量占用4字节
+        int offset = current_stack_offset_;
+        var_to_offset_[var_name] = offset;
+        current_stack_offset_ += 4;
+        return offset;
+    }
+
+    int getValueOffset(const void* value) {
+        auto it = value_to_offset_.find(value);
+        if (it != value_to_offset_.end()) {
+            return it->second;
+        }
+        
+        // 分配新的栈空间
+        int offset = current_stack_offset_;
+        value_to_offset_[value] = offset;
+        current_stack_offset_ += 4;
+        return offset;
     }
 
     const koopa_raw_program_t* parseToRawProgram(const std::string& input)
