@@ -772,9 +772,9 @@ void OptionalExpStmtAST::Dump() const
 
 std::string OptionalExpStmtAST::toKoopa(std::vector<std::string>& generated_instructions, SymbolTable& symbol_table) const
 {
-    if (expression.has_value()) {
-        return expression->get()->toKoopa(generated_instructions);
-    }
+    // if (expression.has_value()) {
+    //     return expression->get()->toKoopa(generated_instructions);
+    // }
     return ""; // 如果没有表达式，返回空字符串
 }
 

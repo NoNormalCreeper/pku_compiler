@@ -118,9 +118,14 @@ BlockItemList
   }
   ;
 
-// Block ::= "{" {BlockItem} "}";
+// Block ::= "{" {BlockItem} "}"; - 支持空块
 Block
-  : '{' BlockItemList '}' {
+  : '{' '}' {
+    // Block ::= "{" "}"; - 空块
+    auto block = std::make_unique<BlockAST>();
+    $$ = block.release();
+  }
+  | '{' BlockItemList '}' {
     // Block ::= "{" BlockItemList "}";
     // 需要将 BaseAST* 转换为 BlockItemAST*
     std::vector<std::unique_ptr<BlockItemAST>> block_items;
