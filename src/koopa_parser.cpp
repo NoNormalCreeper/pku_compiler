@@ -539,6 +539,11 @@ public:
             value_reg = stringFormat("t%d", temp_reg);
         }
         
+        // 处理 0 值
+        if (value_reg == "0") {
+            value_reg = "x0";
+        }
+        
         getGeneratedInstructions().push_back(
             stringFormat("sw %s, %s", value_reg, dest_addr.at(0)));
         return {};  // store指令没有返回值
