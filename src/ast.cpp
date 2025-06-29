@@ -160,8 +160,11 @@ std::string StmtAST::toKoopa(std::vector<std::string>& generated_instructions, S
         } else if constexpr (std::is_same_v<std::decay_t<decltype(stmt_ptr)>, std::unique_ptr<ReturnExpStmtAST>>) {
             // ReturnExpStmtAST has its own generated_instructions member, so just call the existing method
             return stmt_ptr->toKoopa();
+        } else if constexpr (std::is_same_v<std::decay_t<decltype(stmt_ptr)>, std::unique_ptr<OptionalExpStmtAST>>) {
+            return stmt_ptr->toKoopa(generated_instructions, symbol_table);
+        } else if constexpr (std::is_same_v<std::decay_t<decltype(stmt_ptr)>, std::unique_ptr<BlockStmtAST>>) {
+            return stmt_ptr->toKoopa(generated_instructions, symbol_table);
         }
-        return "/* koopa not implemented for this statement */";
     }, statement);
 }
 
@@ -174,17 +177,19 @@ std::string LValEqExpStmtAST::toKoopa(std::vector<std::string>& generated_instru
     // 获取左值标识符
     const auto& var_name = lval->ident;
 
-    // 生成右值表达式的 Koopa IR
-    auto exp = expression->toKoopa(generated_instructions);
-
     // 检查符号表中是否存在该变量
     const auto& symbol_item = symbol_table.getSymbol(var_name);
     if (!symbol_item.has_value() || symbol_item->symbol_type != SymbolType::VAR) {
         throw std::runtime_error(stringFormat("Variable '%s' not defined", var_name.c_str()));
     }
 
+    // 生成右值表达式的 Koopa IR
+    auto exp = expression->toKoopa(generated_instructions);
+
     // 生成 store 指令
-    generated_instructions.push_back(stringFormat("store %s, @%s", exp, var_name));
+    const auto scope_ident = symbol_item->scope_identifier;
+    const auto full_var_name = stringFormat("%s_%d", var_name.c_str(), scope_ident);
+    generated_instructions.push_back(stringFormat("store %s, @%s", exp.c_str(), full_var_name.c_str()));
 
     return ""; // 返回空字符串，因为已经将指令添加到 generated_instructions 中
 
@@ -707,17 +712,17 @@ std::string VarDeclAST::toKoopa(std::vector<std::string>& generated_instructions
     
     // 遍历，alloc
     for (const auto& var_def : var_defs) {
-        std::string var_name = var_def->ident;
+        const auto var_name = stringFormat("%s_%d", var_def->ident.c_str(), symbol_table.getCurrentScopeLevel());
         
-        // 判断、存入符号表 (先添加变量到符号表，不管是否有初始化值)
-        const auto& new_symbol = SymbolTableItem(
-            SymbolType::VAR, type_name, var_name, std::nullopt
+        // 判断、存入符号表 - 使用原始标识符作为key，但设置scope_identifier
+        auto new_symbol = SymbolTableItem(
+            SymbolType::VAR, type_name, var_def->ident, std::nullopt  // 使用原始标识符
         );
         if (!symbol_table.addSymbol(new_symbol)) {
-            throw std::runtime_error(stringFormat("Variable '%s' already defined", var_name.c_str()));
+            throw std::runtime_error(stringFormat("Variable '%s' already defined", var_def->ident.c_str()));
         }
         
-        // 生成 alloc 指令
+        // 生成 alloc 指令 - 使用完整变量名
         generated_instructions.push_back(stringFormat("  @%s = alloc %s", var_name.c_str(), type_name));
         
         // 处理初始化值
@@ -767,7 +772,10 @@ void OptionalExpStmtAST::Dump() const
 
 std::string OptionalExpStmtAST::toKoopa(std::vector<std::string>& generated_instructions, SymbolTable& symbol_table) const
 {
-    return "/* ... */";
+    if (expression.has_value()) {
+        return expression->get()->toKoopa(generated_instructions);
+    }
+    return ""; // 如果没有表达式，返回空字符串
 }
 
 void BlockStmtAST::Dump() const

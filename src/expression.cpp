@@ -29,7 +29,9 @@ std::string PrimaryExpAST::toKoopa(std::vector<std::string>& generated_instructi
             // 是变量，需要生成load指令
             if (symbol_item.has_value() && symbol_item->symbol_type == SymbolType::VAR) {
                 auto new_var = BaseAST::getNewTempVar();
-                generated_instructions.push_back(stringFormat("%%%d = load @%s", new_var, lval->ident));
+                // 使用完整变量名格式
+                const auto full_var_name = stringFormat("%s_%d", lval->ident.c_str(), symbol_item->scope_identifier);
+                generated_instructions.push_back(stringFormat("%%%d = load @%s", new_var, full_var_name.c_str()));
                 return stringFormat("%%%d", new_var);
             }
         }

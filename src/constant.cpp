@@ -71,7 +71,7 @@ std::optional<int> ConstDefAST::processConstDef(SymbolTable& symbol_table) const
         return std::nullopt;
     }
     
-    // 添加到符号表
+    // 添加到符号表 - 使用原始标识符
     SymbolTableItem item(SymbolType::CONST, "int", ident, init_value.value(), true);
     if (!symbol_table.addSymbol(item)) {
         // 符号重定义

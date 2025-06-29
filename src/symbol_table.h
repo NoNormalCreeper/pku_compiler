@@ -19,6 +19,7 @@ public:
     std::string type; // 数据类型 (int, void等)
     std::string identifier; // 标识符
     std::optional<int> value; // 可选的值，用于常量
+    std::optional<int> scope_identifier; // 作用域标识符，用于区分同名变量，构造时不初始化
     bool is_const; // 是否为常量
 
     // 默认构造函数
@@ -44,6 +45,7 @@ class SymbolTable {
 private:
     // 使用栈来管理嵌套的作用域，每个作用域是一个哈希表
     std::stack<std::unordered_map<std::string, SymbolTableItem>> scopes;
+    int current_scope_level = 0; // 当前作用域级别
 
 public:
     SymbolTable() {
@@ -58,15 +60,20 @@ public:
     void exitScope();
     
     // 在当前作用域添加符号
-    bool addSymbol(const SymbolTableItem& item);
+    bool addSymbol(SymbolTableItem& item);
     
     // 查找符号（从当前作用域向外查找）
     std::optional<SymbolTableItem> getSymbol(const std::string& identifier) const;
+
+    // 获取当前作用域的编号
+    int getCurrentScopeLevel() const {
+        return static_cast<int>(scopes.size());
+    }
     
     // 检查当前作用域是否已存在该标识符
     bool existsInCurrentScope(const std::string& identifier) const;
 
     // 兼容旧接口
-    void addItem(const SymbolTableItem& item) { addSymbol(item); }
+    void addItem(SymbolTableItem& item) { addSymbol(item); }
     std::optional<SymbolTableItem> getItem(const std::string& identifier) const { return getSymbol(identifier); }
 };

@@ -2,20 +2,25 @@
 
 void SymbolTable::enterScope() {
     scopes.emplace(); // 添加新的作用域
+    current_scope_level++;
 }
 
 void SymbolTable::exitScope() {
     if (!scopes.empty()) {
         scopes.pop(); // 移除当前作用域
+        current_scope_level--;
     }
 }
 
-bool SymbolTable::addSymbol(const SymbolTableItem& item) {
+bool SymbolTable::addSymbol(SymbolTableItem& item) {
     if (scopes.empty()) {
         return false; // 没有作用域
     }
     
     auto& current_scope = scopes.top();
+
+    // 设置作用域标识符
+    item.scope_identifier = current_scope_level;
     
     // 检查当前作用域是否已存在该标识符
     if (current_scope.find(item.identifier) != current_scope.end()) {
