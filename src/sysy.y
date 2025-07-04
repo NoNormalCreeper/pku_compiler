@@ -32,7 +32,7 @@ using namespace std;
 }
 
 // lexer 返回的所有 token 种类的声明
-%token INT BTYPE RETURN CONST
+%token INT BTYPE RETURN CONST IF ELSE
 %token <str_val> IDENT
 %token <int_val> INT_CONST
 %token <char_val> UNARY_OP
@@ -44,6 +44,11 @@ using namespace std;
 %token <str_val> LOR_OP
 %token '(' LEFT_PAREN
 %token ')' RIGHT_PAREN
+
+
+// 越往下定义的优先级越高
+%nonassoc THEN // 为 "if-then" 规则创建一个较低的优先级
+%nonassoc ELSE // 为 "else" 关键字赋予一个更高的优先级
 
 // 非终结符的类型定义
 %type <ast_val> FuncDef FuncType Block BlockItem Stmt Number
@@ -207,6 +212,32 @@ Stmt
     auto empty_stmt = std::make_unique<OptionalExpStmtAST>();
     auto stmt = std::make_unique<StmtAST>(
       std::move(empty_stmt)
+    );
+    $$ = stmt.release();
+  }
+  | IF '(' Exp ')' Stmt %prec THEN  // 最低优先级
+  {
+    // Stmt ::= IF '(' Exp ')' Stmt;
+    auto if_else_stmt = std::make_unique<IfElseStmtAST>(
+      std::unique_ptr<ExpAST>(static_cast<ExpAST*>($3)),
+      std::unique_ptr<StmtAST>(static_cast<StmtAST*>($5)),
+      std::nullopt  // 没有 else 分支
+    );
+    auto stmt = std::make_unique<StmtAST>(
+      std::move(if_else_stmt)
+    );
+    $$ = stmt.release();
+  }
+  | IF '(' Exp ')' Stmt ELSE Stmt
+  {
+    // Stmt ::= IF '(' Exp ')' Stmt ELSE Stmt;
+    auto if_else_stmt = std::make_unique<IfElseStmtAST>(
+      std::unique_ptr<ExpAST>(static_cast<ExpAST*>($3)),
+      std::unique_ptr<StmtAST>(static_cast<StmtAST*>($5)),
+      std::unique_ptr<StmtAST>(static_cast<StmtAST*>($7))
+    );
+    auto stmt = std::make_unique<StmtAST>(
+      std::move(if_else_stmt)
     );
     $$ = stmt.release();
   }
