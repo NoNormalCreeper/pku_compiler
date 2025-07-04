@@ -24,6 +24,7 @@ class BlockStmtAST;
 class StmtAST;
 class LValEqExpStmtAST;
 class ReturnExpStmtAST;
+class IfElseStmtAST;
 class NumberAST;
 
 class ExpAST;
@@ -148,7 +149,8 @@ private:
 class StmtAST : public BaseAST {
 public:
     std::variant<std::unique_ptr<LValEqExpStmtAST>, std::unique_ptr<ReturnExpStmtAST>,
-        std::unique_ptr<OptionalExpStmtAST>, std::unique_ptr<BlockStmtAST>>
+        std::unique_ptr<OptionalExpStmtAST>, std::unique_ptr<BlockStmtAST>, 
+        std::unique_ptr<IfElseStmtAST>>
         statement;
 
     StmtAST(std::unique_ptr<LValEqExpStmtAST> lval_eq_exp_stmt)
@@ -159,6 +161,8 @@ public:
         : statement(std::move(optional_exp_stmt)) {}
     StmtAST(std::unique_ptr<BlockStmtAST> block_stmt)
         : statement(std::move(block_stmt)) {}
+    StmtAST(std::unique_ptr<IfElseStmtAST> if_else_stmt)
+        : statement(std::move(if_else_stmt)) {}
     void Dump() const override;
     std::string toKoopa() const override;
     std::string toKoopa(std::vector<std::string>& generated_instructions, SymbolTable& symbol_table) const;
@@ -213,6 +217,23 @@ public:
     void Dump() const override;
     std::string toKoopa() const override;
     std::string toKoopa() ;
+};
+
+class IfElseStmtAST : public BaseAST {
+public:
+    std::unique_ptr<ExpAST> condition; // 条件表达式
+    std::unique_ptr<StmtAST> then_stmt; // if 分支语句
+    std::optional<std::unique_ptr<StmtAST>> else_stmt; // 可选的 else 分支语句
+
+    IfElseStmtAST(std::unique_ptr<ExpAST> cond, std::unique_ptr<StmtAST> then_stmt,
+        std::optional<std::unique_ptr<StmtAST>> else_stmt = std::nullopt)
+        : condition(std::move(cond))
+        , then_stmt(std::move(then_stmt))
+        , else_stmt(std::move(else_stmt))
+    {}
+
+    void Dump() const override;
+    std::string toKoopa(std::vector<std::string>& generated_instructions, SymbolTable& symbol_table) const;
 };
 
 // Block

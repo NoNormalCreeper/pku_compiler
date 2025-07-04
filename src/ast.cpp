@@ -195,6 +195,24 @@ std::string LValEqExpStmtAST::toKoopa(std::vector<std::string>& generated_instru
 
 }
 
+void IfElseStmtAST::Dump() const
+{
+    std::cout << "IfElseStmtAST { if (";
+    condition->Dump();
+    std::cout << ") ";
+    then_stmt->Dump();
+    if (else_stmt.has_value()) {
+        std::cout << " else ";
+        else_stmt->get()->Dump();
+    }
+    std::cout << " }";
+}
+
+std::string IfElseStmtAST::toKoopa(std::vector<std::string>& generated_instructions, SymbolTable& symbol_table) const
+{
+    return "/* koopa not implemented for IfElseStmtAST */";
+}
+
 // BlockAST implementations
 // BlockAST::BlockAST(std::unique_ptr<StmtAST> s)
 //     : stmt(std::move(s))
