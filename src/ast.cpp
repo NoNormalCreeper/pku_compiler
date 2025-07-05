@@ -164,7 +164,10 @@ std::string StmtAST::toKoopa(std::vector<std::string>& generated_instructions, S
             return stmt_ptr->toKoopa(generated_instructions, symbol_table);
         } else if constexpr (std::is_same_v<std::decay_t<decltype(stmt_ptr)>, std::unique_ptr<BlockStmtAST>>) {
             return stmt_ptr->toKoopa(generated_instructions, symbol_table);
+        } else if constexpr (std::is_same_v<std::decay_t<decltype(stmt_ptr)>, std::unique_ptr<IfElseStmtAST>>) {
+            return stmt_ptr->toKoopa(generated_instructions, symbol_table);
         }
+        return "";
     }, statement);
 }
 
@@ -208,10 +211,10 @@ void IfElseStmtAST::Dump() const
     std::cout << " }";
 }
 
-std::string IfElseStmtAST::toKoopa(std::vector<std::string>& generated_instructions, SymbolTable& symbol_table) const
-{
-    return "/* koopa not implemented for IfElseStmtAST */";
-}
+// std::string IfElseStmtAST::toKoopa(std::vector<std::string>& generated_instructions, SymbolTable& symbol_table) const
+// {
+//     return "/* koopa not implemented for IfElseStmtAST */";
+// }
 
 // BlockAST implementations
 // BlockAST::BlockAST(std::unique_ptr<StmtAST> s)
