@@ -341,7 +341,7 @@ public:
     {
         // 执行一些其他的必要操作
         // ...
-        
+
         // 生成基本块的标签
         std::string bb_label = extractIdentName(bb->name);
         getGeneratedInstructions().push_back(stringFormat("%s:", bb_label));
@@ -445,11 +445,13 @@ public:
     std::vector<std::string> Visit(const koopa_raw_branch_t& branch)
     {
         const auto& condition = Visit(branch.cond);
+        const auto condition_name = condition.at(0) == "0" ? "x0" : condition.at(0);
 
         // 只生成条件跳转指令，不生成标签
         // 标签应该由函数级别的基本块访问器生成
+
         getGeneratedInstructions().push_back(
-            stringFormat("bnez %s, %s", condition.at(0), extractIdentName(branch.true_bb->name)));
+            stringFormat("bnez %s, %s", condition_name, extractIdentName(branch.true_bb->name)));
         getGeneratedInstructions().push_back(
             stringFormat("j %s", extractIdentName(branch.false_bb->name)));
         
