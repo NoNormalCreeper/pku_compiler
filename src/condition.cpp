@@ -26,9 +26,9 @@ bool containsBasicBlockEnd(const std::vector<std::string>& instructions) {
     
     // Check the last instruction
     const auto& last_instruction = instructions.back();
-    return last_instruction.find("jump") != std::string::npos ||
-           last_instruction.find("ret") != std::string::npos ||
-           last_instruction.find("br") != std::string::npos;
+    return last_instruction.find("jump ") != std::string::npos ||
+           last_instruction.find("ret ") != std::string::npos ||
+           last_instruction.find("br ") != std::string::npos;
 }
 
 std::string IfElseStmtAST::toKoopa(std::vector<std::string>& generated_instructions, SymbolTable& symbol_table) const
