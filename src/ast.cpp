@@ -4,6 +4,7 @@
 #include <cmath>
 #include <optional>
 #include <vector>
+#include <regex>
 
 // 全局符号表指针定义
 SymbolTable* BaseAST::global_symbol_table = nullptr;
@@ -303,20 +304,54 @@ std::string FuncDefAST::toKoopa(std::vector<std::string>& generated_instructions
         // 如果没有全局符号表，使用原来的方式
         block_koopa = block->toKoopa();
     }
+
+    std::vector<std::string> block_koopa_lines;
+    // 将块内容按行分割
+    std::istringstream block_stream(block_koopa);
+    std::string line;
+    while (std::getline(block_stream, line)) {
+        // 去除行首尾空格
+        line = std::regex_replace(line, std::regex("^\\s+|\\s+$"), "");
+        if (!line.empty()) {
+            block_koopa_lines.push_back(line);
+        }
+    }
+    auto full_instructions = generated_instructions;
+    full_instructions.insert(full_instructions.end(), block_koopa_lines.begin(), block_koopa_lines.end());
+
+    // 倒序遍历，处理重复的 ret 指令
+    auto last_ret = full_instructions.rbegin(); // 用于记录最后一个 ret 指令的位置
+    for (auto it = full_instructions.rbegin(); it != full_instructions.rend(); ++it) {
+        if (it->find("ret ") != std::string::npos) {
+            // 如果是 ret 指令，记录索引
+            last_ret = it;
+        }
+        // 如果遇到标签，结束处理
+        if (it->find("%") != std::string::npos && it->find(":") != std::string::npos) {
+            // 找到标签，结束处理
+            break;
+        }
+    }
+    // 如果最后有多个 ret 指令，则添加一个 %unreachable 标签，以保持基本块完整性
+    // 更新：不能直接在最后一个 ret 后添加 %unreachable，因为可能会有多个 ret 指令
+    if (last_ret != full_instructions.rbegin()) {
+        // 直接删除指针后面的所有内容
+        full_instructions.erase(last_ret.base(), full_instructions.end());
+    }
     
     // 将生成的指令添加到结果中
     std::string instructions_str;
-    for (const auto& instr : generated_instructions) {
+    for (const auto& instr : full_instructions) {
         instructions_str += instr + "\n";
     }
     
-    return stringFormat("fun @%s(%s): %s {\n%s%s%s}",
+    return stringFormat("fun @%s(%s): %s {\n%s%s}",
         ident, // 标识符
         "", // 参数列表，暂时留空
         func_type->toKoopa(), // 返回类型
         is_entry_fun ? "\%entry:\n" : "", // 如果是入口函数，添加 entry
-        instructions_str, // 变量声明等指令
-        block_koopa // 函数体其他内容
+        instructions_str // 变量声明等指令
+        // block_koopa // 函数体其他内容
     );
 }
 
