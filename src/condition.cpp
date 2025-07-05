@@ -1,6 +1,35 @@
 #include "ast.h"
 #include "string_format.h"
 #include <algorithm>
+#include <sstream>
+
+
+bool containsBasicBlockEnd(const std::string& block_koopa) {
+    if (block_koopa.empty()) {
+        return false;
+    }
+    
+    // Find the last non-empty line
+    size_t last_newline = block_koopa.find_last_of('\n');
+    std::string last_line = (last_newline != std::string::npos) ? 
+        block_koopa.substr(last_newline + 1) : block_koopa;
+    
+    return last_line.find("jump") != std::string::npos ||
+           last_line.find("ret") != std::string::npos ||
+           last_line.find("br") != std::string::npos;
+}
+
+bool containsBasicBlockEnd(const std::vector<std::string>& instructions) {
+    if (instructions.empty()) {
+        return false;
+    }
+    
+    // Check the last instruction
+    const auto& last_instruction = instructions.back();
+    return last_instruction.find("jump") != std::string::npos ||
+           last_instruction.find("ret") != std::string::npos ||
+           last_instruction.find("br") != std::string::npos;
+}
 
 std::string IfElseStmtAST::toKoopa(std::vector<std::string>& generated_instructions, SymbolTable& symbol_table) const
 {
@@ -11,11 +40,11 @@ std::string IfElseStmtAST::toKoopa(std::vector<std::string>& generated_instructi
     const auto cond_var = BaseAST::getNewTempVar();
     const auto cond_code = condition->toKoopa(instructions);
 
+    // instructions.push_back(
+    //     stringFormat("%%%d = %s", cond_var, cond_code)
+    // );
     instructions.push_back(
-        stringFormat("%%%d = %s", cond_var, cond_code)
-    );
-    instructions.push_back(
-        stringFormat("br %%%d, %%then_%d, %%else_%d", cond_var, cond_var, cond_var)
+        stringFormat("br %s, %%then_%d, %%else_%d", cond_code, cond_var, cond_var)
     );
 
     // if 语句的 if 分支
@@ -28,9 +57,10 @@ std::string IfElseStmtAST::toKoopa(std::vector<std::string>& generated_instructi
         instructions.push_back(then_code);
     }
 
-    instructions.push_back(
-        stringFormat("jump %%end_%d", cond_var)
-    );    
+    if (!containsBasicBlockEnd(instructions)) {
+        // 如果 then 分支没有结束指令，添加一个跳转到 if 语句之后的部分
+        instructions.push_back(stringFormat("jump %%end_%d", cond_var));
+    }   
 
     // if 语句的 else 分支
     instructions.push_back(
@@ -43,8 +73,11 @@ std::string IfElseStmtAST::toKoopa(std::vector<std::string>& generated_instructi
             instructions.push_back(else_code);
         }
     }
-    instructions.push_back(stringFormat("jump %%end_%d", cond_var));
-
+    // 如果 else 分支没有结束指令，添加一个跳转到 if 语句之后的部分
+    if (!containsBasicBlockEnd(instructions)) {
+        instructions.push_back(stringFormat("jump %%end_%d", cond_var));
+    }
+    
     // if 语句之后的内容, if/else 分支的交汇处
     instructions.push_back(
         stringFormat("%%end_%d:", cond_var)
