@@ -46,6 +46,7 @@ private:
     // 使用栈来管理嵌套的作用域，每个作用域是一个哈希表
     std::stack<std::unordered_map<std::string, SymbolTableItem>> scopes;
     int current_scope_level = 0; // 当前作用域级别
+    static int global_variable_counter; // 全局变量计数器，确保每个变量都有唯一的后缀
 
 public:
     SymbolTable() {
@@ -68,6 +69,11 @@ public:
     // 获取当前作用域的编号
     int getCurrentScopeLevel() const {
         return static_cast<int>(scopes.size());
+    }
+    
+    // 获取下一个全局变量计数器值
+    int getNextGlobalVariableId() {
+        return ++global_variable_counter;
     }
     
     // 检查当前作用域是否已存在该标识符

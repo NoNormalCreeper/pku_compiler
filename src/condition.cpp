@@ -52,7 +52,10 @@ std::string IfElseStmtAST::toKoopa(std::vector<std::string>& generated_instructi
         stringFormat("%%then_%d:", cond_var)
     );
 
+    symbol_table.enterScope();
     const auto then_code = then_stmt->toKoopa(instructions, symbol_table);
+    symbol_table.exitScope();
+
     if (!then_code.empty()) {
         instructions.push_back(then_code);
     }
@@ -68,7 +71,9 @@ std::string IfElseStmtAST::toKoopa(std::vector<std::string>& generated_instructi
     );
 
     if (else_stmt.has_value()) {
+        symbol_table.enterScope();
         const auto else_code = else_stmt.value()->toKoopa(instructions, symbol_table);
+        symbol_table.exitScope();
         if (!else_code.empty()) {
             instructions.push_back(else_code);
         }

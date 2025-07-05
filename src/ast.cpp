@@ -733,17 +733,19 @@ std::string VarDeclAST::toKoopa(std::vector<std::string>& generated_instructions
     
     // 遍历，alloc
     for (const auto& var_def : var_defs) {
-        const auto var_name = stringFormat("%s_%d", var_def->ident.c_str(), symbol_table.getCurrentScopeLevel());
-        
-        // 判断、存入符号表 - 使用原始标识符作为key，但设置scope_identifier
+        // 添加符号到符号表（这会自动分配唯一的scope_identifier）
         auto new_symbol = SymbolTableItem(
-            SymbolType::VAR, type_name, var_def->ident, std::nullopt  // 使用原始标识符
+            SymbolType::VAR, type_name, var_def->ident, std::nullopt
         );
         if (!symbol_table.addSymbol(new_symbol)) {
             throw std::runtime_error(stringFormat("Variable '%s' already defined", var_def->ident.c_str()));
         }
         
-        // 生成 alloc 指令 - 使用完整变量名
+        // 获取刚刚添加的符号（包含分配的scope_identifier）
+        auto added_symbol = symbol_table.getSymbol(var_def->ident);
+        const auto var_name = stringFormat("%s_%d", var_def->ident.c_str(), added_symbol->scope_identifier.value());
+        
+        // 生成 alloc 指令
         generated_instructions.push_back(stringFormat("  @%s = alloc %s", var_name.c_str(), type_name));
         
         // 处理初始化值

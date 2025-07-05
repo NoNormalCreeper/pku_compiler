@@ -1,5 +1,8 @@
 #include "symbol_table.h"
 
+// 定义静态成员变量
+int SymbolTable::global_variable_counter = 0;
+
 void SymbolTable::enterScope() {
     scopes.emplace(); // 添加新的作用域
     current_scope_level++;
@@ -19,8 +22,8 @@ bool SymbolTable::addSymbol(SymbolTableItem& item) {
     
     auto& current_scope = scopes.top();
 
-    // 设置作用域标识符
-    item.scope_identifier = current_scope_level;
+    // 设置唯一的作用域标识符
+    item.scope_identifier = getNextGlobalVariableId();
     
     // 检查当前作用域是否已存在该标识符
     if (current_scope.find(item.identifier) != current_scope.end()) {
