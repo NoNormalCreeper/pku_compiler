@@ -201,7 +201,7 @@ std::string LAndExpOpAndEqExpAST::toKoopa(std::vector<std::string>& generated_in
 
     auto first_exp = first_expression->toKoopa(generated_instructions);
     auto second_exp = latter_expression->toKoopa(generated_instructions);
-    auto new_var = BaseAST::getNewTempVar();
+    // auto new_var = BaseAST::getNewTempVar();
     
     generated_instructions.push_back(stringFormat("%%%d = ne %s, 0", left_bool_var, first_exp));
     generated_instructions.push_back(stringFormat("%%%d = ne %s, 0", right_bool_var, second_exp));
