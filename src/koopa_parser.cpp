@@ -103,6 +103,7 @@ private:
     KoopaRawProgramBuilder builder_;
     koopa_raw_program_t raw_program_ {};
     int temp_var_count_ = 0;
+    int serial_num_ = 0; // 用于生成唯一的临时 ID
     std::vector<std::string> generated_instructions_;
     std::unordered_map<const void*, std::string> value_to_register_; // 值到寄存器的映射
     std::unordered_map<const void*, int> value_to_offset_; // 值到栈偏移的映射
@@ -111,6 +112,12 @@ private:
     int total_stack_size_ = 0; // 总栈空间大小
 
 public:
+    int getSerialNum()
+    {
+        // 返回并递增
+        return serial_num_++;
+    }
+
     int getNewTempVar()
     {
         // 只使用 t0, t1, t2 三个寄存器，循环重用
@@ -334,6 +341,11 @@ public:
     {
         // 执行一些其他的必要操作
         // ...
+        
+        // 生成基本块的标签
+        std::string bb_label = extractIdentName(bb->name);
+        getGeneratedInstructions().push_back(stringFormat("%s:", bb_label));
+
         // 访问所有指令
         return Visit(bb->insts);
         return {}; // 返回空向量，因为指令已经添加到 generated_instructions_ 中
@@ -382,6 +394,13 @@ public:
                 result = { stringFormat("%d(sp)", offset) };
             }
             break;
+        case KOOPA_RVT_BRANCH:
+            result = Visit(kind.data.branch);
+            break;
+        case KOOPA_RVT_JUMP:
+            result = Visit(kind.data.jump);
+            break;
+
 
         default:
             assert(false);
@@ -407,6 +426,43 @@ public:
         }
 
         return result;
+    }
+
+    std::string extractIdentName(const std::string& name)
+    {
+        // 提取标识符名称，去掉 @ 前缀
+        if (name.empty() || (name[0] != '@' && name[0] != '%')) {
+            return name; // 如果没有 @ / % 前缀，直接返回
+        }
+        return name.substr(1); // 去掉 @ / % 前缀
+    }
+
+    std::string extractIdentName(const char* name)
+    {
+        return extractIdentName(std::string(name));
+    }
+
+    std::vector<std::string> Visit(const koopa_raw_branch_t& branch)
+    {
+        const auto& condition = Visit(branch.cond);
+
+        // 只生成条件跳转指令，不生成标签
+        // 标签应该由函数级别的基本块访问器生成
+        getGeneratedInstructions().push_back(
+            stringFormat("bnez %s, %s", condition.at(0), extractIdentName(branch.true_bb->name)));
+        getGeneratedInstructions().push_back(
+            stringFormat("j %s", extractIdentName(branch.false_bb->name)));
+        
+        return {}; // 返回空向量，因为指令已经添加到 generated_instructions_ 中
+    }
+
+    std::vector<std::string> Visit(const koopa_raw_jump_t& target)
+    {
+        // 访问 jump 指令 - 跳转到指定的基本块
+        // 直接添加跳转指令
+        getGeneratedInstructions().push_back(
+            stringFormat("j %s", extractIdentName(target.target->name)));
+        return {}; // 返回空向量，因为指令已经添加到 generated_instructions_ 中
     }
 
     std::vector<std::string> Visit(const koopa_raw_integer_t& integer)
