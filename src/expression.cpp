@@ -183,7 +183,37 @@ std::string EqExpOpAndRelExpAST::toKoopa(std::vector<std::string>& generated_ins
 }
 
 std::string LAndExpAST::toKoopa(std::vector<std::string>& generated_instructions)
-{
+{   
+    // 短路求值优化
+    if (std::holds_alternative<std::unique_ptr<LAndExpOpAndEqExpAST>>(expression)) {
+        // LAndExp "&&" EqExp
+        auto result_var = BaseAST::getNewTempVar();
+        const auto& land_exp_op_and_eq_exp = std::get<std::unique_ptr<LAndExpOpAndEqExpAST>>(expression);
+        const auto& lhs_exp = land_exp_op_and_eq_exp->first_expression->toKoopa(generated_instructions);
+        auto lhs_bool_var = BaseAST::getNewTempVar();
+
+        const auto short_true_bb = stringFormat("short_true_%d", result_var);
+        const auto short_false_bb = stringFormat("short_false_%d", result_var);
+
+        generated_instructions.push_back(stringFormat("@_result_%d = alloc i32", result_var));
+        generated_instructions.push_back(stringFormat("store 0, @_result_%d", result_var));    // int result = 0;
+        generated_instructions.push_back(stringFormat("br %s, %%%s, %%%s", lhs_exp, short_true_bb, short_false_bb)); // if (lhs != 0)
+
+        generated_instructions.push_back(stringFormat("%%%s:", short_true_bb)); // 短路求值，直接跳转到短路真分支
+        // 计算 rhs != 0
+        auto rhs_exp = land_exp_op_and_eq_exp->latter_expression->toKoopa(generated_instructions);
+        auto rhs_bool_var = BaseAST::getNewTempVar();
+        generated_instructions.push_back(stringFormat("%%%d = ne %s, 0", rhs_bool_var, rhs_exp));
+        generated_instructions.push_back(stringFormat("store %%%d, @_result_%d", rhs_bool_var, result_var)); // result = (rhs != 0)
+        generated_instructions.push_back(stringFormat("jump %%%s", short_false_bb)); // 跳转到短路假分支
+        generated_instructions.push_back(stringFormat("%%%s:", short_false_bb)); // 短路假分支
+
+        auto new_result_temp_var = BaseAST::getNewTempVar();
+        generated_instructions.push_back(stringFormat("%%%d = load @_result_%d", new_result_temp_var, result_var)); // 将结果存储到变量中
+
+        return stringFormat("%%%d", new_result_temp_var);
+    }
+
     return std::visit([&](auto& expr) -> std::string {
         return expr->toKoopa(generated_instructions);
     }, expression);
