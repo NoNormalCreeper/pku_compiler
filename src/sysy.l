@@ -46,6 +46,7 @@ RightParen    "\)" */
 "const"         { return CONST; }
 "if"            { return IF; }
 "else"          { return ELSE; }
+"while"         { return WHILE; }
 
 {Identifier}    { yylval.str_val = new string(yytext); return IDENT; }
 

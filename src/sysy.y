@@ -32,7 +32,7 @@ using namespace std;
 }
 
 // lexer 返回的所有 token 种类的声明
-%token INT BTYPE RETURN CONST IF ELSE
+%token INT BTYPE RETURN CONST IF ELSE WHILE
 %token <str_val> IDENT
 %token <int_val> INT_CONST
 %token <char_val> UNARY_OP
@@ -149,6 +149,7 @@ Block
 //        | [Exp] ";"
 //        | Block
 //        | "return" [Exp] ";";
+//        | "while" "(" Exp ")" Stmt
 Stmt
   : LVal '=' Exp ';'
   {
@@ -238,6 +239,18 @@ Stmt
     );
     auto stmt = std::make_unique<StmtAST>(
       std::move(if_else_stmt)
+    );
+    $$ = stmt.release();
+  }
+  | WHILE '(' Exp ')' Stmt
+  {
+    // Stmt ::= WHILE '(' Exp ')' Stmt;
+    auto while_stmt = std::make_unique<WhileStmtAST>(
+      std::unique_ptr<ExpAST>(static_cast<ExpAST*>($3)),
+      std::unique_ptr<StmtAST>(static_cast<StmtAST*>($5))
+    );
+    auto stmt = std::make_unique<StmtAST>(
+      std::move(while_stmt)
     );
     $$ = stmt.release();
   }
