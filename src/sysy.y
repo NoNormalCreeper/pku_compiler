@@ -32,7 +32,7 @@ using namespace std;
 }
 
 // lexer 返回的所有 token 种类的声明
-%token INT BTYPE RETURN CONST IF ELSE WHILE
+%token INT BTYPE RETURN CONST IF ELSE WHILE BREAK CONTINUE
 %token <str_val> IDENT
 %token <int_val> INT_CONST
 %token <char_val> UNARY_OP
@@ -251,6 +251,24 @@ Stmt
     );
     auto stmt = std::make_unique<StmtAST>(
       std::move(while_stmt)
+    );
+    $$ = stmt.release();
+  }
+  | BREAK ';'
+  {
+    // Stmt ::= BREAK ";"
+    auto break_stmt = std::make_unique<BreakStmtAST>();
+    auto stmt = std::make_unique<StmtAST>(
+      std::move(break_stmt)
+    );
+    $$ = stmt.release();
+  }
+  | CONTINUE ';'
+  {
+    // Stmt ::= CONTINUE ";"
+    auto continue_stmt = std::make_unique<ContinueStmtAST>();
+    auto stmt = std::make_unique<StmtAST>(
+      std::move(continue_stmt)
     );
     $$ = stmt.release();
   }
