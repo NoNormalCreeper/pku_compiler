@@ -56,10 +56,17 @@
 
 # Lv7. `while` 语句
 
-- [ ] Lv7.1. 处理 `while`
-- [ ] Lv7.2. `break` 和 `continue`
+**`PASSED (12/12)`**
+
+> 感觉屎山越堆越高了......
+
+- [X] Lv7.1. 处理 `while`
+- [X] Lv7.2. `break` 和 `continue`
 
 # Lv8. 函数和全局变量
 
+- [ ] Lv8.1. 函数定义和调用
+- [ ] Lv8.2. SysY 库函数
+- [ ] Lv8.3. 全局变量和常量
 
 # Lv9. 数组
