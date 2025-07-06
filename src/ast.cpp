@@ -295,6 +295,43 @@ void FuncDefAST::Dump() const
     std::cout << " }";
 }
 
+// 清理最终生成的代码中，不属于任何基本块的内容
+// 如果一个基本块结束语句后，不是新的标签，则清理
+bool isBasicBlockEnd(const std::string instruction)
+{
+    return instruction.find("ret ") != std::string::npos || instruction.find("jump ") != std::string::npos || instruction.find("br ") != std::string::npos;
+}
+
+void FuncDefAST::removeUnreachableInstructions(std::vector<std::string>& instructions) const
+{
+    if (instructions.empty()) return;
+
+    std::vector<std::string> cleaned_instructions;
+    enum State : std::uint8_t { InBlock, AfterBlockEnd };
+    State state = InBlock;
+
+    for (const auto& instr : instructions) {
+        // 检查是否是基本块的结束指令
+        if (state == InBlock && isBasicBlockEnd(instr)) {
+            // 如果是基本块结束指令，切换状态
+            state = AfterBlockEnd;
+            cleaned_instructions.push_back(instr);
+        } else if (instr.find("%") != std::string::npos && instr.find(":") != std::string::npos) {
+            // 如果是标签，表示新的基本块开始
+            state = InBlock;
+            cleaned_instructions.push_back(instr);
+        } else {
+            // 其他指令
+            if (state == InBlock) {
+                cleaned_instructions.push_back(instr);
+            }
+            // 在 AfterBlockEnd 状态下，不添加任何指令
+        }
+    }
+
+    instructions = std::move(cleaned_instructions);
+}
+
 // Helper function to remove duplicate return statements in basic blocks
 void FuncDefAST::removeDuplicateReturns(std::vector<std::string>& instructions) const
 {
@@ -362,6 +399,7 @@ std::string FuncDefAST::toKoopa(std::vector<std::string>& generated_instructions
     full_instructions.insert(full_instructions.end(), block_koopa_lines.begin(), block_koopa_lines.end());
 
     // 使用新的helper函数清理重复的return语句
+    removeUnreachableInstructions(full_instructions);
     removeDuplicateReturns(full_instructions);
     
     // 将生成的指令添加到结果中

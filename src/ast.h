@@ -341,6 +341,7 @@ public:
 private:
     // Helper function to remove duplicate return statements in basic blocks
     void removeDuplicateReturns(std::vector<std::string>& instructions) const;
+    void removeUnreachableInstructions(std::vector<std::string>& instructions) const;
 };
 
 // CompUnit 是 BaseAST
