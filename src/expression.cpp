@@ -3,6 +3,7 @@
 */
 
 #include "ast.h"
+#include "string_format.h"
 #include <variant>
 
 std::string ExpAST::toKoopa(std::vector<std::string>& generated_instructions)
@@ -212,6 +213,31 @@ std::string LAndExpOpAndEqExpAST::toKoopa(std::vector<std::string>& generated_in
 
 std::string LOrExpAST::toKoopa(std::vector<std::string>& generated_instructions)
 {
+    // 短路求值优化
+    if (std::holds_alternative<std::unique_ptr<LOrExpOpAndLAndExpAST>>(expression)) {
+        // LOrExp "||" LAndExp
+        auto result_var = BaseAST::getNewTempVar();
+        const auto& lor_exp_op_and_land_exp = std::get<std::unique_ptr<LOrExpOpAndLAndExpAST>>(expression);
+        const auto& lhs_exp = lor_exp_op_and_land_exp->first_expression->toKoopa(generated_instructions);
+        auto lhs_bool_var = BaseAST::getNewTempVar();
+
+        const auto short_true_bb = stringFormat("short_true_%d", result_var);
+        const auto short_false_bb = stringFormat("short_false_%d", result_var);
+
+        generated_instructions.push_back(stringFormat("store %%%d, 1", result_var)); // int result = 1;
+        generated_instructions.push_back(stringFormat("br %s, %%%s, %%%s", lhs_exp, short_false_bb, short_true_bb)); // if (lhs == 0)
+
+        generated_instructions.push_back(stringFormat("%%%s:", short_true_bb)); // 短路求值，直接跳转到短路真分支
+        // 计算 rhs != 0
+        auto rhs_exp = lor_exp_op_and_land_exp->latter_expression->toKoopa(generated_instructions);
+        auto rhs_bool_var = BaseAST::getNewTempVar();
+        generated_instructions.push_back(stringFormat("%%%d = ne %s, 0", rhs_bool_var, rhs_exp));
+        generated_instructions.push_back(stringFormat("%%%d = %%%d", result_var, rhs_bool_var)); // result = (rhs != 0)
+        generated_instructions.push_back(stringFormat("jump %%%s", short_false_bb)); // 跳转到短路假分支
+        generated_instructions.push_back(stringFormat("%%%s:", short_false_bb)); // 短路假分支
+
+        return stringFormat("%%%d", result_var);
+    }
     return std::visit([&](auto& expr) -> std::string {
         return expr->toKoopa(generated_instructions);
     }, expression);
