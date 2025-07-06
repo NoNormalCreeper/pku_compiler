@@ -117,16 +117,50 @@ void WhileStmtAST::Dump() const
 
 void WhileStmtAST::setBodyLoopIds(int loop_id) const
 {
-    // 设置循环体的 loop_id
+    // 递归设置循环体中所有 break 和 continue 语句的 loop_id
     if (body) {
-        if (std::holds_alternative<std::unique_ptr<BreakStmtAST>>(body->statement)) {
-            auto* break_stmt = std::get<std::unique_ptr<BreakStmtAST>>(body->statement).get();
-            break_stmt->loop_id = loop_id;
-        } else if (std::holds_alternative<std::unique_ptr<ContinueStmtAST>>(body->statement)) {
-            auto* continue_stmt = std::get<std::unique_ptr<ContinueStmtAST>>(body->statement).get();
-            continue_stmt->loop_id = loop_id;
-        }
+        setStmtLoopIds(body.get(), loop_id);
     }
+}
+
+// 新增递归辅助函数，用于遍历所有语句类型
+void WhileStmtAST::setStmtLoopIds(StmtAST* stmt, int loop_id) const
+{
+    if (!stmt) return;
+
+    std::visit([&](const auto& stmt_ptr) {
+        if constexpr (std::is_same_v<std::decay_t<decltype(stmt_ptr)>, std::unique_ptr<BreakStmtAST>>) {
+            auto* break_stmt = stmt_ptr.get();
+            break_stmt->loop_id = loop_id;
+        } else if constexpr (std::is_same_v<std::decay_t<decltype(stmt_ptr)>, std::unique_ptr<ContinueStmtAST>>) {
+            auto* continue_stmt = stmt_ptr.get();
+            continue_stmt->loop_id = loop_id;
+        } else if constexpr (std::is_same_v<std::decay_t<decltype(stmt_ptr)>, std::unique_ptr<BlockStmtAST>>) {
+            // 递归处理块语句
+            auto* block_stmt = stmt_ptr.get();
+            if (block_stmt->block) {
+                for (const auto& block_item : block_stmt->block->block_items) {
+                    if (std::holds_alternative<std::unique_ptr<StmtAST>>(block_item->item)) {
+                        const auto& nested_stmt = std::get<std::unique_ptr<StmtAST>>(block_item->item);
+                        setStmtLoopIds(nested_stmt.get(), loop_id);
+                    }
+                }
+            }
+        } else if constexpr (std::is_same_v<std::decay_t<decltype(stmt_ptr)>, std::unique_ptr<IfElseStmtAST>>) {
+            // 递归处理 if-else 语句
+            auto* if_else_stmt = stmt_ptr.get();
+            if (if_else_stmt->then_stmt) {
+                setStmtLoopIds(if_else_stmt->then_stmt.get(), loop_id);
+            }
+            if (if_else_stmt->else_stmt.has_value()) {
+                setStmtLoopIds(if_else_stmt->else_stmt.value().get(), loop_id);
+            }
+        } else if constexpr (std::is_same_v<std::decay_t<decltype(stmt_ptr)>, std::unique_ptr<WhileStmtAST>>) {
+            // 嵌套的 while 循环不需要设置外层的 loop_id，因为它们有自己的 loop_id
+            // 这里不做处理，保持嵌套循环的独立性
+        }
+        // 其他语句类型（LValEqExpStmtAST, ReturnExpStmtAST, OptionalExpStmtAST）不需要特殊处理
+    }, stmt->statement);
 }
 
 std::string WhileStmtAST::toKoopa(std::vector<std::string>& generated_instructions, SymbolTable& symbol_table)

@@ -219,6 +219,10 @@ public:
     void Dump() const override;
     std::string toKoopa(std::vector<std::string>& generated_instructions, SymbolTable& symbol_table);
     void setBodyLoopIds(int loop_id) const;
+
+private:
+    // 递归辅助函数，用于遍历所有语句类型并设置 loop_id
+    void setStmtLoopIds(StmtAST* stmt, int loop_id) const;
 };
 
 class LValEqExpStmtAST : public BaseAST {
