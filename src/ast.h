@@ -26,6 +26,8 @@ class LValEqExpStmtAST;
 class ReturnExpStmtAST;
 class IfElseStmtAST;
 class WhileStmtAST;
+class BreakStmtAST;
+class ContinueStmtAST;
 class NumberAST;
 
 class ExpAST;
@@ -151,7 +153,8 @@ class StmtAST : public BaseAST {
 public:
     std::variant<std::unique_ptr<LValEqExpStmtAST>, std::unique_ptr<ReturnExpStmtAST>,
         std::unique_ptr<OptionalExpStmtAST>, std::unique_ptr<BlockStmtAST>, 
-        std::unique_ptr<IfElseStmtAST>, std::unique_ptr<WhileStmtAST>>
+        std::unique_ptr<IfElseStmtAST>, std::unique_ptr<WhileStmtAST>,
+        std::unique_ptr<BreakStmtAST>, std::unique_ptr<ContinueStmtAST>>
         statement;
 
     StmtAST(std::unique_ptr<LValEqExpStmtAST> lval_eq_exp_stmt)
@@ -166,22 +169,56 @@ public:
         : statement(std::move(if_else_stmt)) {}
     StmtAST(std::unique_ptr<WhileStmtAST> while_stmt)
         : statement(std::move(while_stmt)) {}
+    StmtAST(std::unique_ptr<BreakStmtAST> break_stmt)
+        : statement(std::move(break_stmt)) {}
+    StmtAST(std::unique_ptr<ContinueStmtAST> continue_stmt)
+        : statement(std::move(continue_stmt)) {}
     
     void Dump() const override;
     std::string toKoopa() const override;
     std::string toKoopa(std::vector<std::string>& generated_instructions, SymbolTable& symbol_table) const;
 };
 
+class BreakStmtAST : public BaseAST {
+public:
+    std::optional<int> loop_id; // 循环 ID，用于生成唯一的标签
+
+    BreakStmtAST(std::optional<int> loop_id = std::nullopt)
+        : loop_id(loop_id) {}
+
+    void Dump() const override {
+        std::cout << "BreakStmtAST { break; }";
+    }
+
+    std::string toKoopa(std::vector<std::string>& generated_instructions, SymbolTable& symbol_table);
+};
+
+class ContinueStmtAST : public BaseAST {
+public:
+    std::optional<int> loop_id;
+
+    ContinueStmtAST(std::optional<int> loop_id = std::nullopt)
+        : loop_id(loop_id) {}
+
+    void Dump() const override {
+        std::cout << "ContinueStmtAST { continue; }";
+    }
+
+    std::string toKoopa(std::vector<std::string>& generated_instructions, SymbolTable& symbol_table);
+};
+
 class WhileStmtAST : public BaseAST {
 public:
     std::unique_ptr<ExpAST> condition; // 循环条件表达式
     std::unique_ptr<StmtAST> body; // 循环体
+    std::optional<int> loop_id; // 循环 ID，用于生成唯一的标签
 
     WhileStmtAST(std::unique_ptr<ExpAST> cond, std::unique_ptr<StmtAST> body_stmt)
-        : condition(std::move(cond)), body(std::move(body_stmt)) {}
+        : condition(std::move(cond)), body(std::move(body_stmt)), loop_id(getNewTempVar()) {}
     
     void Dump() const override;
-    std::string toKoopa(std::vector<std::string>& generated_instructions, SymbolTable& symbol_table) const;
+    std::string toKoopa(std::vector<std::string>& generated_instructions, SymbolTable& symbol_table);
+    void setBodyLoopIds(int loop_id) const;
 };
 
 class LValEqExpStmtAST : public BaseAST {

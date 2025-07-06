@@ -169,6 +169,10 @@ std::string StmtAST::toKoopa(std::vector<std::string>& generated_instructions, S
             return stmt_ptr->toKoopa(generated_instructions, symbol_table);
         } else if constexpr (std::is_same_v<std::decay_t<decltype(stmt_ptr)>, std::unique_ptr<WhileStmtAST>>) {
             return stmt_ptr->toKoopa(generated_instructions, symbol_table);
+        } else if constexpr (std::is_same_v<std::decay_t<decltype(stmt_ptr)>, std::unique_ptr<BreakStmtAST>>) {
+            return stmt_ptr->toKoopa(generated_instructions, symbol_table);
+        } else if constexpr (std::is_same_v<std::decay_t<decltype(stmt_ptr)>, std::unique_ptr<ContinueStmtAST>>) {
+            return stmt_ptr->toKoopa(generated_instructions, symbol_table);
         }
         return "/* koopa not implemented for this statement type */";
     }, statement);

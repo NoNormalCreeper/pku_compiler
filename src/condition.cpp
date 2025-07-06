@@ -115,10 +115,25 @@ void WhileStmtAST::Dump() const
     std::cout << " }";
 }
 
-std::string WhileStmtAST::toKoopa(std::vector<std::string>& generated_instructions, SymbolTable& symbol_table) const
+void WhileStmtAST::setBodyLoopIds(int loop_id) const
+{
+    // 设置循环体的 loop_id
+    if (body) {
+        if (std::holds_alternative<std::unique_ptr<BreakStmtAST>>(body->statement)) {
+            auto* break_stmt = std::get<std::unique_ptr<BreakStmtAST>>(body->statement).get();
+            break_stmt->loop_id = loop_id;
+        } else if (std::holds_alternative<std::unique_ptr<ContinueStmtAST>>(body->statement)) {
+            auto* continue_stmt = std::get<std::unique_ptr<ContinueStmtAST>>(body->statement).get();
+            continue_stmt->loop_id = loop_id;
+        }
+    }
+}
+
+std::string WhileStmtAST::toKoopa(std::vector<std::string>& generated_instructions, SymbolTable& symbol_table)
 {
     std::vector<std::string> instructions;
-    auto cond_var = BaseAST::getNewTempVar();
+    int cond_var = loop_id.value_or(loop_id.emplace(BaseAST::getNewTempVar()));
+    setBodyLoopIds(cond_var);
 
     generated_instructions.push_back(
         stringFormat("jump %while_entry_%d", cond_var));
@@ -147,6 +162,14 @@ std::string WhileStmtAST::toKoopa(std::vector<std::string>& generated_instructio
         instructions.push_back(stringFormat("jump %%while_entry_%d", cond_var));
     }
 
+    // 生成用于 continue 的指向循环入口的跳转指令
+    instructions.push_back(
+        stringFormat("%%while_continue_%d:", cond_var)
+    );
+    instructions.push_back(
+        stringFormat("jump %%while_entry_%d", cond_var)
+    );
+
     // 循环结束的标签
     instructions.push_back(
         stringFormat("%%while_end_%d:", cond_var)
@@ -154,6 +177,32 @@ std::string WhileStmtAST::toKoopa(std::vector<std::string>& generated_instructio
 
     // 将生成的指令添加到最终的 IR 代码中
     generated_instructions.insert(generated_instructions.end(), instructions.begin(), instructions.end());
-    
+
+    return "";
+}
+
+std::string BreakStmtAST::toKoopa(std::vector<std::string>& generated_instructions, SymbolTable& symbol_table) 
+{
+    // 生成跳转到循环结束的指令
+    if (loop_id.has_value()) {
+        generated_instructions.push_back(
+            stringFormat("jump %%while_end_%d", loop_id.value())
+        );
+    } else {
+        throw std::runtime_error("BreakStmtAST: loop_id is not set");
+    }
+    return "";
+}
+
+std::string ContinueStmtAST::toKoopa(std::vector<std::string>& generated_instructions, SymbolTable& symbol_table) 
+{
+    // 生成跳转到循环入口的指令
+    if (loop_id.has_value()) {
+        generated_instructions.push_back(
+            stringFormat("jump %%while_continue_%d", loop_id.value())
+        );
+    } else {
+        throw std::runtime_error("ContinueStmtAST: loop_id is not set");
+    }
     return "";
 }
