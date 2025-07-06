@@ -280,6 +280,10 @@ public:
     void Dump() const override;
     // std::string toKoopa() const override;
     std::string toKoopa(std::vector<std::string>& generated_instructions) const;
+
+private:
+    // Helper function to remove duplicate return statements in basic blocks
+    void removeDuplicateReturns(std::vector<std::string>& instructions) const;
 };
 
 // CompUnit 是 BaseAST

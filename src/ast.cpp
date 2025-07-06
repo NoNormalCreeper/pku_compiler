@@ -289,6 +289,42 @@ void FuncDefAST::Dump() const
     std::cout << " }";
 }
 
+// Helper function to remove duplicate return statements in basic blocks
+void FuncDefAST::removeDuplicateReturns(std::vector<std::string>& instructions) const
+{
+    if (instructions.empty()) return;
+    
+    std::vector<std::string> cleaned_instructions;
+    bool found_return_in_current_block = false;
+    
+    for (const auto& instr : instructions) {
+        // Check if this instruction is a label (starts a new basic block)
+        if (instr.find("%") != std::string::npos && instr.find(":") != std::string::npos) {
+            // New basic block starts, reset return flag
+            found_return_in_current_block = false;
+            cleaned_instructions.push_back(instr);
+        }
+        // Check if this instruction is a return statement
+        else if (instr.find("ret ") != std::string::npos) {
+            // Only keep the first return in each basic block
+            if (!found_return_in_current_block) {
+                cleaned_instructions.push_back(instr);
+                found_return_in_current_block = true;
+            }
+            // Skip subsequent returns in the same basic block
+        }
+        else {
+            // Regular instruction - only add if we haven't seen a return in this block
+            if (!found_return_in_current_block) {
+                cleaned_instructions.push_back(instr);
+            }
+            // Skip instructions after return in the same basic block
+        }
+    }
+    
+    instructions = std::move(cleaned_instructions);
+}
+
 std::string FuncDefAST::toKoopa(std::vector<std::string>& generated_instructions) const
 {
     auto is_entry_fun = (ident == "main" && func_type->type_name == "int");
@@ -319,25 +355,8 @@ std::string FuncDefAST::toKoopa(std::vector<std::string>& generated_instructions
     auto full_instructions = generated_instructions;
     full_instructions.insert(full_instructions.end(), block_koopa_lines.begin(), block_koopa_lines.end());
 
-    // 倒序遍历，处理重复的 ret 指令
-    auto last_ret = full_instructions.rbegin(); // 用于记录最后一个 ret 指令的位置
-    for (auto it = full_instructions.rbegin(); it != full_instructions.rend(); ++it) {
-        if (it->find("ret ") != std::string::npos) {
-            // 如果是 ret 指令，记录索引
-            last_ret = it;
-        }
-        // 如果遇到标签，结束处理
-        if (it->find("%") != std::string::npos && it->find(":") != std::string::npos) {
-            // 找到标签，结束处理
-            break;
-        }
-    }
-    // 如果最后有多个 ret 指令，则添加一个 %unreachable 标签，以保持基本块完整性
-    // 更新：不能直接在最后一个 ret 后添加 %unreachable，因为可能会有多个 ret 指令
-    if (last_ret != full_instructions.rbegin()) {
-        // 直接删除指针后面的所有内容
-        full_instructions.erase(last_ret.base(), full_instructions.end());
-    }
+    // 使用新的helper函数清理重复的return语句
+    removeDuplicateReturns(full_instructions);
     
     // 将生成的指令添加到结果中
     std::string instructions_str;
@@ -351,7 +370,6 @@ std::string FuncDefAST::toKoopa(std::vector<std::string>& generated_instructions
         func_type->toKoopa(), // 返回类型
         is_entry_fun ? "\%entry:\n" : "", // 如果是入口函数，添加 entry
         instructions_str // 变量声明等指令
-        // block_koopa // 函数体其他内容
     );
 }
 
