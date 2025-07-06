@@ -25,6 +25,7 @@ class StmtAST;
 class LValEqExpStmtAST;
 class ReturnExpStmtAST;
 class IfElseStmtAST;
+class WhileStmtAST;
 class NumberAST;
 
 class ExpAST;
@@ -150,7 +151,7 @@ class StmtAST : public BaseAST {
 public:
     std::variant<std::unique_ptr<LValEqExpStmtAST>, std::unique_ptr<ReturnExpStmtAST>,
         std::unique_ptr<OptionalExpStmtAST>, std::unique_ptr<BlockStmtAST>, 
-        std::unique_ptr<IfElseStmtAST>>
+        std::unique_ptr<IfElseStmtAST>, std::unique_ptr<WhileStmtAST>>
         statement;
 
     StmtAST(std::unique_ptr<LValEqExpStmtAST> lval_eq_exp_stmt)
@@ -163,8 +164,23 @@ public:
         : statement(std::move(block_stmt)) {}
     StmtAST(std::unique_ptr<IfElseStmtAST> if_else_stmt)
         : statement(std::move(if_else_stmt)) {}
+    StmtAST(std::unique_ptr<WhileStmtAST> while_stmt)
+        : statement(std::move(while_stmt)) {}
+    
     void Dump() const override;
     std::string toKoopa() const override;
+    std::string toKoopa(std::vector<std::string>& generated_instructions, SymbolTable& symbol_table) const;
+};
+
+class WhileStmtAST : public BaseAST {
+public:
+    std::unique_ptr<ExpAST> condition; // 循环条件表达式
+    std::unique_ptr<StmtAST> body; // 循环体
+
+    WhileStmtAST(std::unique_ptr<ExpAST> cond, std::unique_ptr<StmtAST> body_stmt)
+        : condition(std::move(cond)), body(std::move(body_stmt)) {}
+    
+    void Dump() const override;
     std::string toKoopa(std::vector<std::string>& generated_instructions, SymbolTable& symbol_table) const;
 };
 

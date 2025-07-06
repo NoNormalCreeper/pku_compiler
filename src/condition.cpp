@@ -97,3 +97,25 @@ std::string IfElseStmtAST::toKoopa(std::vector<std::string>& generated_instructi
 
     return "";
 }
+
+void WhileStmtAST::Dump() const
+{
+    std::cout << "WhileStmtAST { while ";
+    if (condition) {
+        condition->Dump();
+    } else {
+        std::cout << "null";
+    }
+    std::cout << "; then ";
+    if (body) {
+        body->Dump();
+    } else {
+        std::cout << "null";
+    }
+    std::cout << " }";
+}
+
+std::string WhileStmtAST::toKoopa(std::vector<std::string>& generated_instructions, SymbolTable& symbol_table) const
+{
+    return "/* koopa not implemented for WhileStmtAST */";
+}
