@@ -224,7 +224,8 @@ std::string LOrExpAST::toKoopa(std::vector<std::string>& generated_instructions)
         const auto short_true_bb = stringFormat("short_true_%d", result_var);
         const auto short_false_bb = stringFormat("short_false_%d", result_var);
 
-        generated_instructions.push_back(stringFormat("store %%%d, 1", result_var)); // int result = 1;
+        generated_instructions.push_back(stringFormat("@_result_%d = alloc i32", result_var));
+        generated_instructions.push_back(stringFormat("store 1, @_result_%d", result_var));    // int result = 1;
         generated_instructions.push_back(stringFormat("br %s, %%%s, %%%s", lhs_exp, short_false_bb, short_true_bb)); // if (lhs == 0)
 
         generated_instructions.push_back(stringFormat("%%%s:", short_true_bb)); // 短路求值，直接跳转到短路真分支
@@ -232,11 +233,14 @@ std::string LOrExpAST::toKoopa(std::vector<std::string>& generated_instructions)
         auto rhs_exp = lor_exp_op_and_land_exp->latter_expression->toKoopa(generated_instructions);
         auto rhs_bool_var = BaseAST::getNewTempVar();
         generated_instructions.push_back(stringFormat("%%%d = ne %s, 0", rhs_bool_var, rhs_exp));
-        generated_instructions.push_back(stringFormat("%%%d = %%%d", result_var, rhs_bool_var)); // result = (rhs != 0)
+        generated_instructions.push_back(stringFormat("store %%%d, @_result_%d", rhs_bool_var, result_var)); // result = (rhs != 0)
         generated_instructions.push_back(stringFormat("jump %%%s", short_false_bb)); // 跳转到短路假分支
         generated_instructions.push_back(stringFormat("%%%s:", short_false_bb)); // 短路假分支
 
-        return stringFormat("%%%d", result_var);
+        auto new_result_temp_var = BaseAST::getNewTempVar();
+        generated_instructions.push_back(stringFormat("%%%d = load @_result_%d", new_result_temp_var, result_var)); // 将结果存储到变量中
+
+        return stringFormat("%%%d", new_result_temp_var);
     }
     return std::visit([&](auto& expr) -> std::string {
         return expr->toKoopa(generated_instructions);
