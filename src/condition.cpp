@@ -117,5 +117,43 @@ void WhileStmtAST::Dump() const
 
 std::string WhileStmtAST::toKoopa(std::vector<std::string>& generated_instructions, SymbolTable& symbol_table) const
 {
-    return "/* koopa not implemented for WhileStmtAST */";
+    std::vector<std::string> instructions;
+    auto cond_var = BaseAST::getNewTempVar();
+
+    generated_instructions.push_back(
+        stringFormat("jump %while_entry_%d", cond_var));
+    generated_instructions.push_back(
+        stringFormat("%%while_entry_%d:", cond_var));
+    
+    symbol_table.enterScope();
+    // 生成条件判断代码
+    const auto cond_code = condition->toKoopa(instructions);
+    instructions.push_back(
+        stringFormat("br %s, %%while_body_%d, %%while_end_%d", cond_code, cond_var, cond_var)
+    );
+
+    // 生成循环体代码
+    instructions.push_back(
+        stringFormat("%%while_body_%d:", cond_var)
+    );
+    const auto body_code = body->toKoopa(instructions, symbol_table);
+    symbol_table.exitScope();
+    if (!body_code.empty()) {
+        instructions.push_back(body_code);
+    }
+
+    // 如果循环体没有结束指令，添加一个跳转到循环入口
+    if (!containsBasicBlockEnd(instructions)) {
+        instructions.push_back(stringFormat("jump %%while_entry_%d", cond_var));
+    }
+
+    // 循环结束的标签
+    instructions.push_back(
+        stringFormat("%%while_end_%d:", cond_var)
+    );
+
+    // 将生成的指令添加到最终的 IR 代码中
+    generated_instructions.insert(generated_instructions.end(), instructions.begin(), instructions.end());
+    
+    return "";
 }
